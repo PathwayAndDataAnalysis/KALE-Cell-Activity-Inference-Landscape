@@ -6,8 +6,8 @@ document.addEventListener("DOMContentLoaded", function() {
     const openUploadModalBtn = document.getElementById('open-upload-modal-btn');
     const closeUploadModalBtn = document.getElementById('close-upload-modal-btn');
     const cancelUploadBtn = document.getElementById('cancel-upload-btn');
-     const seeMoreButtons = document.querySelectorAll('.see-more-btn');
-     const searchInput = document.getElementById('analysis-search-input');
+    const seeMoreButtons = document.querySelectorAll('.see-more-btn');
+    const searchInput = document.getElementById('analysis-search-input');
     const cardsContainer = document.getElementById('analysis-cards-container');
 
     if (dataFileInput && fileTypeContainer) {
