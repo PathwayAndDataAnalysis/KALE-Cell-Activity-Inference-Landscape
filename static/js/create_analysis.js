@@ -17,21 +17,21 @@ const qcPlotMTPercentStats = document.getElementById("qc-plot-mt-percent-stats")
 
 function toggleH5adSection() {
 	if (h5adCheckbox.checked) {
-		h5adSelectionSection.style.display = "block";
-		separateFilesSection.style.display = "none";
-		geneExpFile.required = false;
-		metadataFile.required = false;
+		if (h5adSelectionSection) h5adSelectionSection.style.display = "block";
+		if (separateFilesSection) separateFilesSection.style.display = "none";
+		if (geneExpFile) geneExpFile.required = false;
+		if (metadataFile) metadataFile.required = false;
 
-		geneExpFile.value = "select-gene-exp-file";
-		speciesSelection.value = "select-species";
-		metadataFile.value = "select-metadata-file";
+		if (geneExpFile) geneExpFile.value = "select-gene-exp-file";
+		if (speciesSelection) speciesSelection.value = "select-species";
+		if (metadataFile) metadataFile.value = "select-metadata-file";
 	} else {
-		h5adSelectionSection.style.display = "none";
-		separateFilesSection.style.display = "block";
-		geneExpFile.required = true;
-		metadataFile.required = false;
+		if (h5adSelectionSection) h5adSelectionSection.style.display = "none";
+		if (separateFilesSection) separateFilesSection.style.display = "block";
+		if (geneExpFile) geneExpFile.required = true;
+		if (metadataFile) metadataFile.required = false;
 
-		h5adFileSelection.value = "select-h5ad-file";
+		if (h5adFileSelection) h5adFileSelection.value = "select-h5ad-file";
 	}
 }
 
@@ -107,7 +107,9 @@ document.addEventListener("DOMContentLoaded", function () {
 		}
 		for (let file of user_files) {
 			if (selectedFilename === file.filename) {
-				if (!file.qc_metrics || typeof file.qc_metrics !== "object")
+				const qcMetrics = file.qc_metrics;
+				const hasCounts = (metric) => metric && Array.isArray(metric.counts) && metric.counts.length > 0;
+				if (!qcMetrics || typeof qcMetrics !== "object")
 					return;
 
 				// Animate in
@@ -115,10 +117,10 @@ document.addEventListener("DOMContentLoaded", function () {
 				void plotsContainer.offsetWidth;
 				plotsContainer.classList.add("show");
 
-				if (file.qc_metrics.gene_expression.counts.length > 0) {
+				if (hasCounts(qcMetrics.gene_expression)) {
 					renderHistogram(
 						plotDivs.qcPlotGeneExpression,
-						file.qc_metrics.gene_expression,
+						qcMetrics.gene_expression,
 						"Gene Expression",
 						"Expression Level",
 						"Cell Count"
@@ -127,17 +129,16 @@ document.addEventListener("DOMContentLoaded", function () {
 					qcPlotGeneExpressionStats.innerHTML =
 						`<div class="flex justify-between w-full">
 							<p class="text-xs mt-2 font-mono text-gray-500">
-								<span class="font-semibold">Min. Value: </span>${file.qc_metrics.gene_expression.min}
-							</p>
-							<p class="text-xs mt
-								2 font-mono text-gray-500">
-								<span class="font-semibold">Mean: </span>${file.qc_metrics.gene_expression.mean}
+								<span class="font-semibold">Min. Value: </span>${qcMetrics.gene_expression.min}
 							</p>
 							<p class="text-xs mt-2 font-mono text-gray-500">
-								<span class="font-semibold">Standard Deviation: </span>${file.qc_metrics.gene_expression.sd}
+								<span class="font-semibold">Mean: </span>${qcMetrics.gene_expression.mean}
 							</p>
 							<p class="text-xs mt-2 font-mono text-gray-500">
-								<span class="font-semibold">Max. Value: </span>${file.qc_metrics.gene_expression.max}
+								<span class="font-semibold">Standard Deviation: </span>${qcMetrics.gene_expression.sd}
+							</p>
+							<p class="text-xs mt-2 font-mono text-gray-500">
+								<span class="font-semibold">Max. Value: </span>${qcMetrics.gene_expression.max}
 							</p>
 						</div>`;
 				}
@@ -146,10 +147,10 @@ document.addEventListener("DOMContentLoaded", function () {
 					qcPlotGeneExpressionStats.innerHTML = `<div class="text-center text-gray-500 p-4">No data available for Gene Expression.</div>`;
 				}
 
-				if (file.qc_metrics.n_genes_by_counts.counts.length > 0) {
+				if (hasCounts(qcMetrics.n_genes_by_counts)) {
 					renderHistogram(
 						plotDivs.qcPlotGenesPerCell,
-						file.qc_metrics.n_genes_by_counts,
+						qcMetrics.n_genes_by_counts,
 						"Genes per Cell",
 						"Number of Genes",
 						"Cell Count"
@@ -158,16 +159,16 @@ document.addEventListener("DOMContentLoaded", function () {
 					qcPlotGenesPerCellStats.innerHTML =
 						`<div class="flex justify-between w-full">
 							<p class="text-xs mt-2 font-mono text-gray-500">
-								<span class="font-semibold">Min. Value: </span>${file.qc_metrics.n_genes_by_counts.min}
+								<span class="font-semibold">Min. Value: </span>${qcMetrics.n_genes_by_counts.min}
 							</p>
 							<p class="text-xs mt-2 font-mono text-gray-500">
-								<span class="font-semibold">Mean: </span>${file.qc_metrics.n_genes_by_counts.mean}
+								<span class="font-semibold">Mean: </span>${qcMetrics.n_genes_by_counts.mean}
 							</p>
 							<p class="text-xs mt-2 font-mono text-gray-500">
-								<span class="font-semibold">Standard Deviation: </span>${file.qc_metrics.n_genes_by_counts.sd}
+								<span class="font-semibold">Standard Deviation: </span>${qcMetrics.n_genes_by_counts.sd}
 							</p>
 							<p class="text-xs mt-2 font-mono text-gray-500">
-								<span class="font-semibold">Max. Value: </span>${file.qc_metrics.n_genes_by_counts.max}
+								<span class="font-semibold">Max. Value: </span>${qcMetrics.n_genes_by_counts.max}
 							</p>
 						</div>`;
 				}
@@ -176,10 +177,10 @@ document.addEventListener("DOMContentLoaded", function () {
 					qcPlotGenesPerCellStats.innerHTML = `<div class="text-center text-gray-500 p-4">No data available for Genes per Cell.</div>`;
 				}
 
-				if (file.qc_metrics.n_cells_by_counts.counts.length > 0) {
+				if (hasCounts(qcMetrics.n_cells_by_counts)) {
 					renderHistogram(
 						plotDivs.qcPlotCellsPerGene,
-						file.qc_metrics.n_cells_by_counts,
+						qcMetrics.n_cells_by_counts,
 						"Cells per Gene",
 						"Number of Cells",
 						"Gene Count"
@@ -187,16 +188,16 @@ document.addEventListener("DOMContentLoaded", function () {
 					qcPlotCellsPerGeneStats.innerHTML =
 						`<div class="flex justify-between w-full">
 							<p class="text-xs mt-2 font-mono text-gray-500">
-								<span class="font-semibold">Min. Value: </span>${file.qc_metrics.n_cells_by_counts.min}
+								<span class="font-semibold">Min. Value: </span>${qcMetrics.n_cells_by_counts.min}
 							</p>
 							<p class="text-xs mt-2 font-mono text-gray-500">
-								<span class="font-semibold">Mean: </span>${file.qc_metrics.n_cells_by_counts.mean}
+								<span class="font-semibold">Mean: </span>${qcMetrics.n_cells_by_counts.mean}
 							</p>
 							<p class="text-xs mt-2 font-mono text-gray-500">
-								<span class="font-semibold">Standard Deviation: </span>${file.qc_metrics.n_cells_by_counts.sd}
+								<span class="font-semibold">Standard Deviation: </span>${qcMetrics.n_cells_by_counts.sd}
 							</p>
 							<p class="text-xs mt-2 font-mono text-gray-500">
-								<span class="font-semibold">Max. Value: </span>${file.qc_metrics.n_cells_by_counts.max}
+								<span class="font-semibold">Max. Value: </span>${qcMetrics.n_cells_by_counts.max}
 							</p>
 						</div>`;
 				}
@@ -205,30 +206,30 @@ document.addEventListener("DOMContentLoaded", function () {
 					qcPlotCellsPerGeneStats.innerHTML = `<div class="text-center text-gray-500 p-4">No data available for Cells per Gene.</div>`
 				}
 
-				if (file.qc_metrics.pct_counts_mt.counts.length > 0) {
+				if (hasCounts(qcMetrics.pct_counts_mt)) {
 					renderHistogram(
 						plotDivs.qcPlotMTPercent,
-						file.qc_metrics.pct_counts_mt,
+						qcMetrics.pct_counts_mt,
 						"Mitochondrial Content %",
 						"% MT",
 						"Cell Count"
 					);
 
-					qcPlotMTPercentStats.innerHTML =
-						`<div class="flex justify-between w-full">
-							<p class="text-xs mt-2 font-mono text-gray-500">
-								<span class="font-semibold">Min. Value: </span>${file.qc_metrics.pct_counts_mt.min}
-							</p>
-							<p class="text-xs mt-2 font-mono text-gray-500">
-								<span class="font-semibold">Mean: </span>${file.qc_metrics.pct_counts_mt.mean}
-							</p>
-							<p class="text-xs mt-2 font-mono text-gray-500">
-								<span class="font-semibold">Standard Deviation: </span>${file.qc_metrics.pct_counts_mt.sd}
-							</p>
-							<p class="text-xs mt-2 font-mono text-gray-500">
-								<span class="font-semibold">Max. Value: </span>${file.qc_metrics.pct_counts_mt.max}
-							</p>
-						</div>`;
+						qcPlotMTPercentStats.innerHTML =
+							`<div class="flex justify-between w-full">
+								<p class="text-xs mt-2 font-mono text-gray-500">
+									<span class="font-semibold">Min. Value: </span>${qcMetrics.pct_counts_mt.min}
+								</p>
+								<p class="text-xs mt-2 font-mono text-gray-500">
+									<span class="font-semibold">Mean: </span>${qcMetrics.pct_counts_mt.mean}
+								</p>
+								<p class="text-xs mt-2 font-mono text-gray-500">
+									<span class="font-semibold">Standard Deviation: </span>${qcMetrics.pct_counts_mt.sd}
+								</p>
+								<p class="text-xs mt-2 font-mono text-gray-500">
+									<span class="font-semibold">Max. Value: </span>${qcMetrics.pct_counts_mt.max}
+								</p>
+							</div>`;
 				}
 				else {
 					plotDivs.qcPlotMTPercent.classList.add("hidden")
@@ -245,18 +246,18 @@ document.addEventListener("DOMContentLoaded", function () {
 		}, 500);
 	}
 
-	geneExpFile.addEventListener("change", function () {
+	if (geneExpFile) geneExpFile.addEventListener("change", function () {
 		showQcPlotsForFile(geneExpFile.value);
 	});
 
-	h5adFileSelection.addEventListener("change", function () {
+	if (h5adFileSelection) h5adFileSelection.addEventListener("change", function () {
 		showQcPlotsForFile(h5adFileSelection.value);
 	});
 
 	// Validation for input fields
 	addInputValidation("min-genes", 0);
 	addInputValidation("min-cells", 0);
-	addInputValidation("data-nomralize-value", 0);
+	addInputValidation("data-normalize-value", 0);
 	addInputValidation("max-mt-pct", 0, 100);
 	addInputValidation("pca_components", 2);
 	addInputValidation("n_neighbors", 2);

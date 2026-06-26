@@ -3,7 +3,6 @@ import pandas as pd
 import scanpy as sc
 import psutil
 from flask import current_app
-from numba.core.typing.dictdecl import infer
 
 from app.utils import infer_delimiter
 
@@ -22,13 +21,17 @@ def validate_input_files(analysis_data):
         if file_size == 0:
             raise ValueError(f"[UMAP] H5AD file is empty: {filepath}")
 
-        # Try to read the file
+        # Try to read the file metadata without loading the full matrix into memory.
+        adata = None
         try:
-            adata = sc.read_h5ad(filepath)
+            adata = sc.read_h5ad(filepath, backed="r")
             if adata.n_obs == 0 or adata.n_vars == 0:
                 raise ValueError(f"[UMAP] H5AD file contains no data: {filepath}")
         except Exception as e:
             raise ValueError(f"[UMAP] Failed to read H5AD file {filepath}: {e}")
+        finally:
+            if adata is not None and getattr(adata, "isbacked", False):
+                adata.file.close()
 
     else:
         # Validate separate files
@@ -51,10 +54,18 @@ def run_umap_pipeline(
         # Validate input files first
         validate_input_files(analysis_data)
 
-        # Check system resources
+        # Log current memory, but do not reject work based only on a coarse
+        # percent-used snapshot. OS file caches can make percent usage look high.
         memory = psutil.virtual_memory()
-        if memory.percent > 85:
-            raise MemoryError("[UMAP] Insufficient memory for UMAP processing")
+        current_app.logger.info(
+            "[UMAP] Memory before processing: %.2f GB available, %.1f%% used.",
+            memory.available / (1024 ** 3),
+            memory.percent,
+        )
+        if memory.available < 512 * 1024 * 1024:
+            current_app.logger.warning(
+                "[UMAP] Less than 512 MB memory is currently available; continuing and allowing actual processing errors to surface."
+            )
 
         # 1. Load data
         gene_expr = analysis_data["inputs"]["gene_expression"]

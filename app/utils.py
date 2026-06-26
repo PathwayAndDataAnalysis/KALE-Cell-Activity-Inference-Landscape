@@ -11,11 +11,13 @@ import scanpy as sc
 import numpy as np
 from . import get_all_users_data, save_all_users_data, get_file_path
 from filelock import FileLock
+from scipy.sparse import issparse
 
 executor = ThreadPoolExecutor(max_workers=4)  # Adjust as needed
 
 MAX_FILE_SIZE = 500 * 1024 * 1024 * 1024  # 500 GB
 MIN_DISK_SPACE = 10 * 1024 * 1024 * 1024  # 10 GB
+MIN_PROCESSING_MEMORY = 512 * 1024 * 1024  # 512 MB
 
 # Define constants for column names
 CLUSTER_COL = "Cluster"
@@ -81,8 +83,14 @@ def calculate_and_save_qc_metrics(user_id, filename, file_path):
         if filename.endswith('.h5ad'):
             adata = sc.read_h5ad(file_path)
 
-            # Get only the non-zero expression values, which is a much smaller array
-            non_zero_expr = adata.X.data
+            # Sparse matrices expose non-zero values directly; dense matrices need filtering.
+            if issparse(adata.X):
+                non_zero_expr = adata.X.data
+            else:
+                expr_values = np.asarray(adata.X).ravel()
+                non_zero_expr = expr_values[expr_values != 0]
+            non_zero_expr = np.asarray(non_zero_expr)
+            non_zero_expr = non_zero_expr[np.isfinite(non_zero_expr)]
 
             if non_zero_expr.size > 0:
                 # Calculate histogram only on the non-zero values
@@ -114,8 +122,8 @@ def calculate_and_save_qc_metrics(user_id, filename, file_path):
         else:  # For .tsv, .csv
             # Infer delimiter based on file extension
             delimiter = infer_delimiter(file_path)
-            adata = sc.AnnData(pd.read_csv(file_path, index_col=0, delimiter=delimiter))
             gene_exp_df = pd.read_csv(file_path, index_col=0, delimiter=delimiter)
+            adata = sc.AnnData(gene_exp_df)
 
             expr_flat = gene_exp_df.values.flatten()
             expr_flat = expr_flat[np.isfinite(expr_flat)]  # remove NaN/Inf
@@ -279,8 +287,8 @@ def infer_delimiter(filepath):
         return ','
 
 
-def check_system_resources():
-    """Check if system has enough resources for processing."""
+def check_system_resources(require_memory=True):
+    """Check coarse disk and, optionally, memory availability."""
     try:
         # Check disk space
         disk_usage = shutil.disk_usage(current_app.config["UPLOAD_FOLDER"])
@@ -288,9 +296,12 @@ def check_system_resources():
             raise ValueError(f"Insufficient disk space. Need at least {MIN_DISK_SPACE / (1024 ** 3):.1f} GB free.")
 
         # Check memory
-        memory = psutil.virtual_memory()
-        if memory.available < 2 * 1024 * 1024 * 1024:  # 2 GB
-            raise ValueError("Insufficient memory available for processing.")
+        if require_memory:
+            memory = psutil.virtual_memory()
+            if memory.available < MIN_PROCESSING_MEMORY:
+                raise ValueError(
+                    f"Insufficient memory available. Need at least {MIN_PROCESSING_MEMORY / (1024 ** 2):.0f} MB free."
+                )
 
         return True
     except Exception as e:

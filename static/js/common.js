@@ -20,7 +20,9 @@ function addInputValidation(inputId, min, max=null) {
     const input = document.getElementById(inputId);
     if (!input) return;
     input.addEventListener("input", function () {
-        let value = parseInt(this.value, 10);
+        if (this.value === "") return;
+
+        let value = Number(this.value);
 
         if (isNaN(value)) {
             this.value = "";

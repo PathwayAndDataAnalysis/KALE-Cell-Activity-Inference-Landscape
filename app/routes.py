@@ -1,7 +1,7 @@
 import io
 import os
 import uuid
-from datetime import datetime, timezone  # For timestamps
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -13,7 +13,7 @@ from flask import (
     url_for,
     flash,
     current_app,
-    jsonify, send_from_directory, Response, send_file,
+    jsonify, send_from_directory, Response,
 )
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -155,9 +155,10 @@ def download_data(filename):
 @login_required
 def upload_data():
     try:
-        # Check system resources first
-        if not check_system_resources():
-            flash("System resources insufficient for file upload. Please try again later.", "error")
+        # Uploads are streamed to disk, so the preflight check should not reject
+        # them only because the machine is under normal memory pressure.
+        if not check_system_resources(require_memory=False):
+            flash("System disk space is insufficient for file upload. Please try again later.", "error")
             return redirect(url_for("main_routes.index"))
 
         if "data_file" not in request.files:
@@ -355,15 +356,16 @@ def create_analysis_page():
 @login_required
 def create_analysis():
     try:
-        # Check system resources
-        if not check_system_resources():
-            flash("System resources insufficient for analysis. Please try again later.", "error")
+        # Do not block analysis creation on a coarse memory snapshot. The
+        # background pipeline logs current memory and handles real failures.
+        if not check_system_resources(require_memory=False):
+            flash("System disk space is insufficient for analysis. Please try again later.", "error")
             return redirect(url_for("main_routes.create_analysis_page"))
 
         current_app.logger.info(f"Create analysis form data: {request.form}")
 
         # Validate analysis name
-        analysis_name = request.form.get("analysis_name").strip()
+        analysis_name = request.form.get("analysis_name", "").strip()
         if not analysis_name:
             flash("Analysis name is required.", "error")
             return redirect(url_for("main_routes.create_analysis_page"))
@@ -382,16 +384,16 @@ def create_analysis():
 
         # Gene Expression Data
         have_h5ad = request.form.get("have_h5ad") == "on"
-        selected_h5ad_file = request.form.get("selected_h5ad_file")
-        gene_exp_file = request.form.get("gene_exp_file")
+        selected_h5ad_file = request.form.get("selected_h5ad_file", "")
+        gene_exp_file = request.form.get("gene_exp_file", "")
         species = request.form.get("species") if request.form.get("species") and request.form.get("species") != "select-species" else "auto"
-        metadata_file = request.form.get("metadata_file")
+        metadata_file = request.form.get("metadata_file", "")
         ignore_zeros = request.form.get("ignore_zeros") == "on"
-        prior_data_file = request.form.get("prior_data_file")
+        prior_data_file = request.form.get("prior_data_file", "use-default-prior-data")
 
         # 2D Layout Data
         have_2d_layout = request.form.get("have_2d_layout") == "on"
-        layout_file_2d = request.form.get("layout_file_2d")
+        layout_file_2d = request.form.get("layout_file_2d", "")
 
         # Data Filtering Parameters
         data_filtering = {}
@@ -423,11 +425,11 @@ def create_analysis():
 
         # Gene Expression File Validation
         if have_h5ad:
-            if not selected_h5ad_file:
+            if not selected_h5ad_file or selected_h5ad_file == "select-h5ad-file":
                 flash("Please select a .h5ad file.", "error")
                 return redirect(url_for("main_routes.create_analysis_page"))
         else:
-            if not gene_exp_file:
+            if not gene_exp_file or gene_exp_file == "select-gene-exp-file":
                 flash("Please select a gene expression file.", "error")
                 return redirect(url_for("main_routes.create_analysis_page"))
 
@@ -625,7 +627,7 @@ def get_metadata_color_by(analysis_id):
         }
         return jsonify(graph_data), 200
 
-    except Exception as e:
+    except Exception:
         current_app.logger.error(
             f"Error in get_metadata_color_by for analysis_id={analysis_id}.",
             exc_info=True,

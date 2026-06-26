@@ -170,8 +170,8 @@ pValueThresholdRadio.addEventListener("click", function () {
 
 function updatePlot(plot_data){
 	if (plot_data.data && plot_data.layout) {
-		total_cells = plot_data.data.reduce((acc, trace) => acc + (trace.x ? trace.x.length : 0), 0);
-		totalCells.textContent = `Total Cells: ${total_cells}`;
+		const totalCellsCount = plot_data.data.reduce((acc, trace) => acc + (trace.x ? trace.x.length : 0), 0);
+		totalCells.textContent = `Total Cells: ${totalCellsCount}`;
 		console.log(plot_data);
 
 		plot_data.layout.dragmode = "pan"; // Set default to pan

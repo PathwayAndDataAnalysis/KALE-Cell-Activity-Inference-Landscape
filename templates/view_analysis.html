@@ -277,13 +277,13 @@ block content %}
                             <div class="border-l border-gray-300"></div>
                             <div>
                                 <div class="flex items-center">
-                                    <input
-                                        type="radio"
-                                        id="p-value-threshold-radio"
-                                        name="threshold_type"
-                                        value="fdr_correction"
-                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                                    />
+									<input
+										type="radio"
+										id="p-value-threshold-radio"
+										name="threshold_type"
+										value="p_value_threshold"
+										class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+									/>
                                     <label for="p-value-threshold-radio" class="ml-2 text-sm text-gray-700">P-Value Threshold</label>
                                 </div>
                                 <input
@@ -366,7 +366,6 @@ block content %}
 	<script>
 		window.analysis = {{ analysis | tojson }};
 	</script>
-    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
 	<script src="{{ url_for('static', filename='js/view_analysis.js') }}"></script>
 </div>
 

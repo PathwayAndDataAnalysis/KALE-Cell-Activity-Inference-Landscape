@@ -47,7 +47,7 @@ def _process_single_cell(
 
     # Robustness: If no genes with valid expression, return empty scores for this cell.
     if n_genes == 0:
-        return cell_name, {}
+        return cell_name, [], [], []
 
     ranks = (np.arange(1, n_genes + 1) - 0.5) / n_genes
     rank_df = pd.DataFrame({"TargetGene": expr.index, "Rank": ranks})
@@ -77,7 +77,7 @@ def _process_single_cell(
 
     # If tf_summary is empty after filtering, no TFs to score for this cell
     if tf_summary.empty:
-        return cell_name, {}
+        return cell_name, [], [], []
 
     # Create new column, If RankMean is <0.5, 1 else -1
     tf_summary["ActivationDir"] = np.where(tf_summary["RankMean"] < 0.5, 1, -1)

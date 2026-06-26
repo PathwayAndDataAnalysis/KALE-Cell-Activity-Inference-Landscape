@@ -1,7 +1,5 @@
 import json
 import os
-import signal
-from contextlib import contextmanager
 
 from flask import Flask, current_app
 from flask_login import LoginManager, UserMixin
