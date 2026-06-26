@@ -40,6 +40,7 @@ def run_bh_correction_and_save_tfs(
         update_analysis_status_fn: callable,
         p_values_path: str = None,
         activation_path: str = None,
+        activity_scores_path: str = None,
         z_scores_path: str = None,
 ):
     fdr_level: float = 0.1
@@ -53,6 +54,7 @@ def run_bh_correction_and_save_tfs(
         status="Completed",
         pvalues_path=p_values_path,
         activation_path=activation_path,
+        activity_scores_path=activity_scores_path,
         tfs=tf_counts.index.tolist() if (tf_counts.index.tolist()) else [],
         z_scores_path=z_scores_path
     )

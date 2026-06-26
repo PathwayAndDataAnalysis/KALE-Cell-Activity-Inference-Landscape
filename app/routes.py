@@ -28,7 +28,7 @@ from . import (
     get_file_path,
 )
 from .benjamini_hotchberg import bh_fdr_correction
-from .tf_analysis import run_tf_analysis
+from .run_z_aggregate import run_z_aggregate_analysis
 from .umap_pipeline import run_umap_pipeline
 from .utils import run_in_background, update_analysis_status, infer_delimiter, calculate_and_save_qc_metrics, \
     get_user_specific_data_path, generate_scatter_plot_response, get_layout_and_metadata_dfs, generate_colored_traces, \
@@ -38,6 +38,13 @@ from .utils import run_in_background, update_analysis_status, infer_delimiter, c
 # Create Blueprints
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 main_bp = Blueprint("main_routes", __name__)  # No prefix for main app routes like index
+
+BUILT_IN_PRIOR_FILES = {
+    "causalpath.tsv": "CausalPath",
+    "collectri.tsv": "CollecTRI",
+    "ensemble.tsv": "Ensemble",
+    "dorothea.tsv": "DoRothEA",
+}
 
 
 
@@ -349,7 +356,11 @@ def delete_data(filename):
 def create_analysis_page():
     all_users_data = get_all_users_data()
     user_files = all_users_data.get(current_user.id, {}).get("files", [])
-    return render_template("create_analysis.html", user_files=user_files)
+    return render_template(
+        "create_analysis.html",
+        user_files=user_files,
+        built_in_prior_files=BUILT_IN_PRIOR_FILES,
+    )
 
 
 @main_bp.route("/analysis/create", methods=["POST"])
@@ -389,7 +400,7 @@ def create_analysis():
         species = request.form.get("species") if request.form.get("species") and request.form.get("species") != "select-species" else "auto"
         metadata_file = request.form.get("metadata_file", "")
         ignore_zeros = request.form.get("ignore_zeros") == "on"
-        prior_data_file = request.form.get("prior_data_file", "use-default-prior-data")
+        prior_data_file = request.form.get("prior_data_file", "causalpath.tsv")
 
         # 2D Layout Data
         have_2d_layout = request.form.get("have_2d_layout") == "on"
@@ -455,6 +466,15 @@ def create_analysis():
             flash("Could not create storage for analysis. Please try again.", "error")
             return redirect(url_for("main_routes.create_analysis_page"))
 
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        prior_data_dir = os.path.join(script_dir, "..", "prior_data")
+        if prior_data_file in BUILT_IN_PRIOR_FILES:
+            prior_data_filepath = os.path.join(prior_data_dir, prior_data_file)
+            prior_data_name = BUILT_IN_PRIOR_FILES[prior_data_file]
+        else:
+            prior_data_filepath = get_file_path(prior_data_file, current_user.id)
+            prior_data_name = prior_data_file
+
         new_analysis = {
             "id": analysis_id,
             "name": analysis_name,
@@ -487,7 +507,8 @@ def create_analysis():
                     "ignore_zeros": ignore_zeros
                 },
                 "prior_data" : {
-                    "prior_data_filepath" : get_file_path(prior_data_file, current_user.id) if prior_data_file != "use-default-prior-data" else "Default",
+                    "prior_data_filepath": prior_data_filepath,
+                    "prior_data_name": prior_data_name,
                     "min_number_of_targets": request.form.get("min_number_of_targets", type=int, default=3),
                 },
                 "data_filtering": data_filtering,
@@ -511,10 +532,6 @@ def create_analysis():
         current_user_node["analyses"].append(new_analysis)
         save_all_users_data(all_users_data)
 
-        # The selected method for analysis
-        analysis_method = request.form.get("analysis_method")
-        # possible analysis_method: "ranks_from_zscore", "stouffers_zscore", "ranks_from_gene_expression"
-
         # 1. Run UMAP Pipeline in the background to generate 2D layout
         run_in_background(
             run_umap_pipeline,
@@ -522,10 +539,9 @@ def create_analysis():
             analysis_id,
             new_analysis,
             have_2d_layout,
-            analysis_method,
             ignore_zeros,
             update_status_fn=update_analysis_status,
-            run_analysis_fn=run_tf_analysis
+            run_analysis_fn=run_z_aggregate_analysis
         )
 
         flash(f'Analysis "{analysis_name}" created successfully and is pending.', "success")
@@ -721,26 +737,26 @@ def change_fdr_tf(analysis_id):
 
         pvalues_path = analysis.get("pvalues_path")
         layout_filepath = analysis.get("inputs").get("layout").get("layout_filepath")
-        activation_path = analysis.get("activation_path")
+        activity_scores_path = analysis.get("activity_scores_path") or analysis.get("activation_path")
 
-        if not os.path.exists(pvalues_path):
+        if not pvalues_path or not os.path.exists(pvalues_path):
             current_app.logger.error(f"P-values file '{pvalues_path}' not found for analysis_id '{analysis_id}'.")
             return jsonify({"error": "P-values file not found. Cannot re-run FDR correction."}), 404
-        if not os.path.exists(layout_filepath):
+        if not layout_filepath or not os.path.exists(layout_filepath):
             current_app.logger.error(f"Layout file '{layout_filepath}' not found for analysis_id '{analysis_id}'.")
             return jsonify({"error": "Layout file not found. Cannot re-run FDR correction."}), 404
-        if not os.path.exists(activation_path):
-            current_app.logger.error(f"Activation file '{activation_path}' not found for analysis_id '{analysis_id}'.")
-            return jsonify({"error": "Activation file not found. Cannot re-run FDR correction."}), 404
+        if not activity_scores_path or not os.path.exists(activity_scores_path):
+            current_app.logger.error(f"Activity scores file '{activity_scores_path}' not found for analysis_id '{analysis_id}'.")
+            return jsonify({"error": "Activity scores file not found. Cannot re-run FDR correction."}), 404
 
         plot_df = pd.read_csv(layout_filepath, index_col=0, sep=infer_delimiter(layout_filepath))
         pvalues_df_tf = pd.read_parquet(pvalues_path, use_threads=True, columns=[tf_name])
-        activation_tf = pd.read_parquet(activation_path, use_threads=True, columns=[tf_name])
+        activity_scores_tf = pd.read_parquet(activity_scores_path, use_threads=True, columns=[tf_name])
 
         corrected_pvalues, reject, p_value_thresholds = bh_fdr_correction(pvalues_df_tf, fdr_level)
 
         final_output = pd.DataFrame(0, index=reject.index, columns=reject.columns)
-        final_output[reject] = activation_tf[reject]
+        final_output[reject] = np.sign(activity_scores_tf[reject])
         final_output[pvalues_df_tf.isna()] = np.nan
         final_output = final_output.astype("Int64")
 
@@ -792,21 +808,21 @@ def change_pvalue_threshold_tf(analysis_id):
 
         pvalues_path = analysis.get("pvalues_path")
         layout_filepath = analysis.get("inputs").get("layout").get("layout_filepath")
-        activation_path = analysis.get("activation_path")
+        activity_scores_path = analysis.get("activity_scores_path") or analysis.get("activation_path")
 
-        if not os.path.exists(pvalues_path):
+        if not pvalues_path or not os.path.exists(pvalues_path):
             current_app.logger.error(f"P-values file '{pvalues_path}' not found for analysis_id '{analysis_id}'.")
             return jsonify({"error": "P-values file not found. Cannot re-run FDR correction."}), 404
-        if not os.path.exists(layout_filepath):
+        if not layout_filepath or not os.path.exists(layout_filepath):
             current_app.logger.error(f"Layout file '{layout_filepath}' not found for analysis_id '{analysis_id}'.")
             return jsonify({"error": "Layout file not found. Cannot re-run FDR correction."}), 404
-        if not os.path.exists(activation_path):
-            current_app.logger.error(f"Activation file '{activation_path}' not found for analysis_id '{analysis_id}'.")
-            return jsonify({"error": "Activation file not found. Cannot re-run FDR correction."}), 404
+        if not activity_scores_path or not os.path.exists(activity_scores_path):
+            current_app.logger.error(f"Activity scores file '{activity_scores_path}' not found for analysis_id '{analysis_id}'.")
+            return jsonify({"error": "Activity scores file not found. Cannot re-run FDR correction."}), 404
 
         plot_df = pd.read_csv(layout_filepath, index_col=0, sep=infer_delimiter(layout_filepath))
         pvalues_df = pd.read_parquet(pvalues_path, use_threads=True)
-        activation_tf = pd.read_parquet(activation_path, use_threads=True, columns=[tf_name])
+        activity_scores_tf = pd.read_parquet(activity_scores_path, use_threads=True, columns=[tf_name])
         fdr = estimate_fdr_for_gene(pvalues_df, tf_name, pvalue_threshold)
 
         pvalues_df_tf = pvalues_df[[tf_name]].dropna()
@@ -815,7 +831,7 @@ def change_pvalue_threshold_tf(analysis_id):
         reject = reject.astype("boolean")
 
         final_output = pd.DataFrame(0, index=reject.index, columns=reject.columns)
-        final_output[reject] = activation_tf[reject]
+        final_output[reject] = np.sign(activity_scores_tf[reject])
         final_output[pvalues_df_tf.isna()] = np.nan
         final_output = final_output.astype("Int64")
 
@@ -864,19 +880,16 @@ def download_analysis(analysis_id):
 
     try:
         pvalues_path = analysis_to_download.get("pvalues_path")
-        activation_path = analysis_to_download.get("activation_path")
+        activity_scores_path = analysis_to_download.get("activity_scores_path") or analysis_to_download.get("activation_path")
 
         if not pvalues_path or not os.path.exists(pvalues_path):
             flash("P-values file not found for this analysis.", "error")
             return redirect(url_for("main_routes.index"))
-        if not activation_path or not os.path.exists(activation_path):
-            flash("Activation file not found for this analysis.", "error")
+        if not activity_scores_path or not os.path.exists(activity_scores_path):
+            flash("Activity scores file not found for this analysis.", "error")
             return redirect(url_for("main_routes.index"))
 
-        pvalues_df = pd.read_parquet(pvalues_path, use_threads=True)
-        activation_df = pd.read_parquet(activation_path, use_threads=True)
-
-        combined_df = pvalues_df.multiply(activation_df, fill_value=0)
+        combined_df = pd.read_parquet(activity_scores_path, use_threads=True)
 
         # --- Create TSV in an in-memory buffer ---
         tsv_buffer = io.StringIO()

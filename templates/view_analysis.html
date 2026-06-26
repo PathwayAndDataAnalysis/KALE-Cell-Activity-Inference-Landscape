@@ -1,16 +1,16 @@
 {% extends "base.html" %} {% block title %}View Analysis - {{ analysis.name }}{% endblock %} {%
 block content %}
-<div class="container mx-auto flex flex-col h-full">
-	<div class="flex justify-between items-center mb-2 pb-2 border-b">
+<div class="flex min-h-[calc(100vh-6.5rem)] flex-1 flex-col">
+	<div class="mb-4 flex flex-shrink-0 items-center justify-between border-b border-gray-200 pb-3">
         <div>
             <div class="flex items-center space-x-4">
-                <h1 class="text-2xl font-bold text-gray-800">
-                    <span class="text-blue-600">{{ analysis.name }}</span>
+                <h1 class="text-2xl font-semibold text-gray-900">
+                    {{ analysis.name }}
                 </h1>
                 <button
                     id="more-info-btn"
                     type="button"
-                    class="inline-flex items-center px-3 py-2 bg-blue-500 hover:bg-blue-700 text-white text-sm font-semibold rounded shadow transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    class="btn-secondary"
                 >
                     <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z"/>
@@ -26,7 +26,7 @@ block content %}
                 aria-modal="true"
                 role="dialog"
             >
-                <div class="bg-white rounded-lg shadow-lg max-w-lg w-full p-6 relative">
+                <div class="app-card max-w-lg w-full p-6 relative">
                     <button
                         id="close-modal-btn"
                         class="absolute top-2 right-2 text-gray-400 hover:text-gray-700 focus:outline-none"
@@ -36,7 +36,7 @@ block content %}
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
                     </button>
-                    <h3 class="text-xl font-bold text-blue-600 mb-2">Parameters and Information</h3>
+                    <h3 class="mb-2 text-xl font-semibold text-gray-900">Parameters and Information</h3>
                     <div class="text-gray-700 text-sm space-y-2">
                         <p><strong>Name:</strong> {{ analysis.name }}</p>
                         <p><strong>Status:</strong> {{ analysis.status }}</p>
@@ -94,7 +94,7 @@ block content %}
 
 		<a
 			href="{{ url_for('main_routes.index') }}"
-			class="bg-gray-500 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-150 ease-in-out text-sm"
+			class="btn-secondary"
 		>
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
@@ -110,13 +110,13 @@ block content %}
 		</a>
 	</div>
 
-	<div class="grid grid-cols-1 md:grid-cols-4 gap-4 flex-grow">
+	<div class="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-4">
 		<!-- Plot Display Area -->
-		<div class="md:col-span-3 bg-white p-4 rounded-lg shadow-lg flex flex-col">
-			<h2 id="plot-title" class="text-xl font-semibold text-gray-700 mb-4 border-b pb-2">UMAP Plot</h2>
+		<div class="app-card flex min-h-0 flex-col p-4 md:col-span-3">
+			<h2 id="plot-title" class="section-title mb-4 flex-shrink-0 border-b border-gray-200 pb-2">UMAP Plot</h2>
 			<div
 				id="umap-plot-container"
-				class="w-full flex-grow bg-gray-100 rounded flex items-center justify-center"
+				class="relative flex min-h-[480px] w-full flex-1 items-center justify-center rounded-md border border-gray-200 bg-white"
 			>
 				<div class="w-full h-full" id="scatterPlot"></div>
 				<div
@@ -128,7 +128,7 @@ block content %}
 					></div>
 				</div>
 			</div>
-			<div class="mt-1 flex justify-between">
+			<div class="mt-1 flex flex-shrink-0 justify-between">
                 <div>
                     <p class="text-sm text-gray-600">
                         <strong>Status:</strong>
@@ -149,8 +149,8 @@ block content %}
 		</div>
 
 		<!-- Configuration Panel -->
-		<div class="md:col-span-1 bg-white p-4 rounded-lg shadow-lg flex flex-col">
-			<h2 class="text-xl font-semibold text-gray-700 mb-4 border-b pb-2">Plot Configuration</h2>
+		<div class="app-card flex flex-col p-4 md:col-span-1 md:self-start">
+			<h2 class="section-title mb-4 border-b border-gray-200 pb-2">Plot Configuration</h2>
 			<form id="plot-config-form" class="flex flex-col flex-grow">
 				<div>
 					<!-- Wrapper for form elements -->
@@ -159,20 +159,20 @@ block content %}
 						<select
 							id="plot-type"
 							name="plot_type"
-							class="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+							class="form-control"
                         >
                             <option value="umap_plot">UMAP</option>
                             <option value="pca_plot">PCA</option>
 						</select>
 					</div>
 
-                    <div class="border border-gray-300 rounded-md bg-gray-100 px-2 pt-2 fill-slate-100">
+                    <div class="rounded-md border border-gray-200 bg-gray-50 px-3 pt-3">
                         <div class="mb-4">
                             <label for="color-by" class="block text-sm font-medium text-gray-700 mb-1">Color by:</label>
                             <select
                                 id="color-by"
                                 name="color_by"
-                                class="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                class="form-control"
                             >
                                 <option value="select_cluster_type">---Select Cluster Type---</option>
                                 <option value="metadata_columns">Metadata Columns</option>
@@ -187,7 +187,7 @@ block content %}
                             <select
                                 id="metadata-column-name"
                                 name="metadata_column_name"
-                                class="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                class="form-control">
                                 <option value="select_metadata_column">---Select Metadata Column---</option>
                                 {% for column in analysis.metadata_cols %}
                                     <option value="{{ column }}">{{ column }}</option>
@@ -200,7 +200,7 @@ block content %}
                             <select
                                 id="tf-name-select"
                                 name="tf_name_select"
-                                class="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm mt-2"
+                                class="form-control mt-2"
                             >
                                 <option value="select_tf">---Select Transcription Factor---</option>
                                 {% for tf in analysis.tfs %}
@@ -215,7 +215,7 @@ block content %}
                                 type="text"
                                 id="gene-entry-input"
                                 name="gene_entry"
-                                class="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                class="form-control"
                                 placeholder="Enter Gene Name"
                             />
                         </div>
@@ -225,7 +225,7 @@ block content %}
                             <select
                                 id="color-scale-select"
                                 name="color-scale-select"
-                                class="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm mt-2"
+                                class="form-control mt-2"
                             >
                                 <option value="Viridis">Viridis</option>
                                 <option value="Plasma">Plasma</option>
@@ -244,7 +244,7 @@ block content %}
                         </div>
                     </div>
 
-                    <div id="change-threshold-type-div" class="border border-gray-300 rounded-md  p-2 my-2 fill-slate-100 hidden">
+                    <div id="change-threshold-type-div" class="my-2 hidden rounded-md border border-gray-200 bg-gray-50 p-3">
                         <label for="change-threshold-type" class="block text-sm text-gray-700 font-medium mb-1">
                             Significance Threshold Type:
                         </label>
@@ -269,7 +269,7 @@ block content %}
                                     min="0.001"
                                     max="0.2"
                                     step="0.001"
-                                    class="p-2 border border-gray-300 rounded-md text-xs w-full mt-1 disabled:bg-gray-200 disabled:text-gray-600"
+                                    class="mt-1 w-full rounded-md border border-gray-300 p-2 text-xs disabled:bg-gray-200 disabled:text-gray-600"
                                     placeholder="e.g., 0.1"
                                 />
                             </div>
@@ -291,18 +291,18 @@ block content %}
                                     name="p-val-threshold"
                                     id="p-val-threshold"
                                     max="1.0"
-                                    class="p-2 border border-gray-300 rounded-md text-xs w-full mt-1 disabled:bg-gray-200 disabled:text-gray-600"
+                                    class="mt-1 w-full rounded-md border border-gray-300 p-2 text-xs disabled:bg-gray-200 disabled:text-gray-600"
                                     placeholder="e.g., 0.0015"
                                     disabled
                                 />
                             </div>
                         </div>
-                        <button type="button" id="apply-correction" class="mt-2 w-full bg-blue-500 hover:bg-blue-700 text-sm text-white py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-150 ease-in-out">
+                        <button type="button" id="apply-correction" class="btn-primary mt-2 w-full">
                             Apply
                         </button>
                     </div>
 
-                    <div class="border border-gray-300 rounded-md bg-gray-100 px-2 pt-2 mt-2 fill-slate-100">
+                    <div class="mt-2 rounded-md border border-gray-200 bg-gray-50 px-3 pt-3">
                         <div class="mb-2">
                             <label for="point-size" class="block text-sm font-medium text-gray-700 mb-1"
                                 >Point Size:</label
@@ -355,7 +355,7 @@ block content %}
 				<!-- End of wrapper for form elements -->
 				<button
 					type="submit"
-					class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-150 ease-in-out mt-auto"
+					class="btn-primary mt-auto w-full"
 				>
 					Update Plot
 				</button>

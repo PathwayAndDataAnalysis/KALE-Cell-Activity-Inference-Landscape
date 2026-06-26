@@ -1,57 +1,36 @@
 {% extends "base.html" %} {% block title %}Create New Analysis{% endblock %} {% block content %}
-<div class="mx-auto mt-2 bg-white px-20 py-8 rounded-lg shadow-lg">
-    <h1 class="text-xl font-bold text-center text-gray-700 mb-4">Create New Analysis</h1>
+<div class="app-card mx-auto max-w-5xl p-5 sm:p-8">
+    <h1 class="mb-5 text-xl font-semibold text-gray-900">Create New Analysis</h1>
     <form method="POST" action="{{ url_for('main_routes.create_analysis') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}" />
 
         <!-- Analysis Name Section -->
         <div class="mb-4">
-            <label for="analysis_name" class="block text-gray-700 text-md font-bold mb-2">Analysis Name</label>
+            <label for="analysis_name" class="form-label">Analysis Name</label>
             <input type="text" id="analysis_name" name="analysis_name" required
-                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" />
+                class="form-control" />
         </div>
 
         <!-- Analysis Method Section -->
-        <div class="p-8 rounded-lg mb-4 border border-gray-200">
-            <h3 class="font-bold text-gray-800 text-md mb-4">Choose an Analysis Method</h3>
-            <div class="space-y-4">
-                <div class="flex items-start p-3 border rounded-md has-[:checked]:bg-blue-50 has-[:checked]:border-blue-400">
-                    <input type="radio" id="method_ranks_zscore" name="analysis_method" value="ranks_from_zscore"
-                           class="h-4 w-4 mt-1 text-blue-600 border-gray-300 focus:ring-blue-500" checked>
-                    <div class="ml-3 text-sm">
-                        <label for="method_ranks_zscore" class="font-medium text-gray-900">
-                            Ranks from z-score
-                            <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                Recommended
-                            </span>
-                        </label>
-                        <p class="text-gray-500 mt-1">Compares each gene's z-score to the distribution of all scores. Robust and generally applicable.</p>
-                    </div>
-                </div>
-
-                <div class="flex items-start p-3 border rounded-md has-[:checked]:bg-blue-50 has-[:checked]:border-blue-400">
-                    <input type="radio" id="method_stouffers" name="analysis_method" value="stouffers_zscore"
-                           class="h-4 w-4 mt-1 text-blue-600 border-gray-300 focus:ring-blue-500">
-                    <div class="ml-3 text-sm">
-                        <label for="method_stouffers" class="font-medium text-gray-900">Stouffer's z-score</label>
-                        <p class="text-gray-500 mt-1">Combines z-scores from independent tests.</p>
-                    </div>
-                </div>
-
-                <div class="flex items-start p-3 border rounded-md has-[:checked]:bg-blue-50 has-[:checked]:border-blue-400">
-                    <input type="radio" id="method_ranks_expression" name="analysis_method" value="ranks_from_gene_expression"
-                           class="h-4 w-4 mt-1 text-blue-600 border-gray-300 focus:ring-blue-500">
-                    <div class="ml-3 text-sm">
-                        <label for="method_ranks_expression" class="font-medium text-gray-900">Ranks from gene expression</label>
-                        <p class="text-gray-500 mt-1">Directly ranks genes by expression level. Simple but sensitive to outliers.</p>
-                    </div>
+        <div class="app-section mb-4">
+            <h3 class="section-title mb-4">Analysis Method</h3>
+            <div class="flex items-start rounded-md border border-blue-200 bg-blue-50 p-3">
+                <input type="hidden" name="analysis_method" value="z_aggregate">
+                <div class="text-sm">
+                    <p class="font-medium text-gray-900">
+                        Z-Aggregate
+                        <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            Default
+                        </span>
+                    </p>
+                    <p class="text-gray-500 mt-1">Computes TF activity from standardized target-gene expression using uniform prior-edge weights.</p>
                 </div>
             </div>
         </div>
 
         <!-- Gene Expression Section -->
-        <div class="p-8 rounded-lg mb-4 border border-gray-200">
-            <p class="font-bold text-gray-700 mb-3 text-md">Gene Expression Data</p>
+        <div class="app-section mb-4">
+            <p class="section-title mb-3">Gene Expression Data</p>
             <div class="mb-3 flex items-center">
                 <input type="checkbox" id="have_h5ad" name="have_h5ad"
                     class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-2"
@@ -62,10 +41,10 @@
             <hr class="my-4 border-gray-300" />
 
             <div id="h5ad_selection_section" class="space-y-2" style="display: none">
-                <label for="selected_h5ad_file" class="block text-gray-700 text-sm font-semibold mb-1">Select .h5ad File:</label>
+                <label for="selected_h5ad_file" class="form-label">Select .h5ad File:</label>
                 {% if user_files %}
                     <select id="selected_h5ad_file" name="selected_h5ad_file"
-                        class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-white">
+                        class="form-control">
                         <option value="select-h5ad-file">-- Select a .h5ad file --</option>
                         {% for file_info in user_files %}
                             {% if file_info.filename.endswith('.h5ad') %}
@@ -85,9 +64,9 @@
             <div id="separate_files_section" class="space-y-3">
                 <p class="text-sm text-gray-500 mb-2">If you don't have a .h5ad file, you can also select:</p>
                 <div>
-                    <label for="gene_exp_file" class="block text-gray-700 text-sm font-semibold mb-1">Select Gene Expression File:</label>
+                    <label for="gene_exp_file" class="form-label">Select Gene Expression File:</label>
                     <select id="gene_exp_file" name="gene_exp_file"
-                        class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-white">
+                        class="form-control">
                         <option value="select-gene-exp-file">-- Select a gene expression file --</option>
                         {% for file_info in user_files %}
                             {% if file_info.file_type == 'Gene Expression' %}
@@ -100,9 +79,9 @@
                 </div>
 
                 <div>
-                    <label for="species" class="block text-gray-700 text-sm font-semibold mb-1">Select Species:</label>
+                    <label for="species" class="form-label">Select Species:</label>
                     <select id="species" name="species"
-                        class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-white">
+                        class="form-control">
                         <option value="select-species">-- Select a species --</option>
                         <option value="human">Human</option>
                         <option value="mouse">Mouse</option>
@@ -110,9 +89,9 @@
                 </div>
 
                 <div>
-                    <label for="metadata_file" class="block text-gray-700 text-sm font-semibold mb-1">Select Metadata File (Optional):</label>
+                    <label for="metadata_file" class="form-label">Select Metadata File (Optional):</label>
                     <select id="metadata_file" name="metadata_file"
-                        class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-white">
+                        class="form-control">
                         <option value="select-metadata-file">-- Select a metadata file --</option>
                         {% for file_info in user_files %}
                             {% if file_info.file_type == 'Metadata' %}
@@ -125,29 +104,11 @@
                 </div>
             </div>
 
-            <hr class="my-4 border-gray-300" />
-
-            <div class="mt-4 flex items-center group">
-                <input type="checkbox" id="ignore_zeros" name="ignore_zeros" value="on"
-                    class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-2" checked/>
-                <label for="ignore_zeros" class="text-gray-700 text-sm font-medium">Exclude zero values from gene expression dataset</label>
-
-                <div class="relative ml-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-
-                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 bg-gray-800 text-white text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-                        Check this to exclude data points with a value of zero from all calculations. This is useful for focusing only on actively expressed genes.
-                    </div>
-                </div>
-            </div>
-
         </div>
 
         <!-- QC Plots Section -->
-        <div id="qc-plots-container" class="qc-fade-slide mt-4 mb-4 p-8 border border-gray-200 rounded-lg bg-gray-50 hidden">
-            <h3 class="text-md font-semibold text-gray-700 mb-3">Quality Control Plots for Selected File</h3>
+        <div id="qc-plots-container" class="qc-fade-slide app-section mt-4 mb-4 hidden bg-gray-50">
+            <h3 class="section-title mb-3">Quality Control Plots for Selected File</h3>
             <div class="grid md:grid-cols-1 gap-4">
                 <div>
                     <div id="qc-plot-gene-expression" class="h-64"></div>
@@ -173,15 +134,20 @@
 
 
         <!-- Prior Data Section -->
-        <div class="p-8 rounded-lg mb-4 border border-gray-200">
-            <p class="font-semibold text-gray-700 mb-3 text-md">Prior Data:</p>
-            <p class="text-xs text-gray-500 mb-4">You can select your own prior data file, or you can use default prior data.</p>
+        <div class="app-section mb-4">
+            <p class="section-title mb-3">Prior Data:</p>
+            <p class="muted-help mb-4">Select one of the built-in prior databases, or choose a custom uploaded prior file.</p>
 
             <div>
-                <label for="prior_data_file" class="block text-gray-700 text-sm font-semibold mb-1">Select Prior Data File:</label>
+                <label for="prior_data_file" class="form-label">Select Prior Data File:</label>
                 <select id="prior_data_file" name="prior_data_file"
-                    class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-white">
-                    <option value="use-default-prior-data">Use Default Curated Database</option>
+                    class="form-control">
+                    {% for filename, label in built_in_prior_files.items() %}
+                        <option value="{{ filename }}">{{ label }}</option>
+                    {% endfor %}
+                    {% if user_files | selectattr('file_type', 'equalto', 'Prior Data') | list %}
+                        <option disabled>----------</option>
+                    {% endif %}
                     {% for file_info in user_files %}
                         {% if file_info.file_type == 'Prior Data' %}
                             <option value="{{ file_info.filename }}">
@@ -193,10 +159,10 @@
             </div>
 
             <div class="mt-4">
-                <label for="min_number_of_targets" class="block text-sm text-gray-700 font-semibold mb-1">Minimum Targets per TF:</label>
+                <label for="min_number_of_targets" class="form-label">Minimum Targets per TF:</label>
                 <input type="number" name="min_number_of_targets" id="min_number_of_targets" value="3" min="1"
-                    class="w-full p-2 border border-gray-300 rounded-md text-sm" />
-                <p class="text-xs text-gray-500 mt-1">
+                    class="form-control" />
+                <p class="muted-help mt-1">
                     Only consider TFs that regulate at least this many target genes present in your expression data. Helps remove unreliable TFs.
                 </p>
             </div>
@@ -204,9 +170,9 @@
 
 
         <!-- Data Filtering Section -->
-        <div class="p-8 rounded-lg mb-4 border border-gray-200">
-            <p class="font-semibold text-gray-700 mb-3 text-md">Data Filtering:</p>
-            <p class="text-xs text-gray-500 mb-4">Check a box to apply the corresponding filter. The plots above can help you choose appropriate values. (Select a file to see plots)</p>
+        <div class="app-section mb-4">
+            <p class="section-title mb-3">Data Filtering:</p>
+            <p class="muted-help mb-4">Check a box to apply the corresponding filter. The plots above can help you choose appropriate values. (Select a file to see plots)</p>
 
             <!-- Keep Cells by Gene Count -->
             <div class="mb-3 flex items-center space-x-3">
@@ -214,7 +180,7 @@
                        class="mr-2 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0" />
                 <label for="filter-cells" class="text-sm text-gray-700">Keep cells with at least</label>
                 <input type="number" id="min-genes" name="min_genes" value="100" min="0"
-                       class="w-24 p-1 border border-gray-300 rounded-md text-sm" />
+                       class="w-24 rounded-md border border-gray-300 p-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                 <span class="text-sm text-gray-700">genes</span>
             </div>
 
@@ -224,7 +190,7 @@
                        class="mr-2 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0" />
                 <label for="filter-genes" class="text-sm text-gray-700">Keep genes found in at least</label>
                 <input type="number" id="min-cells" name="min_cells" value="10" min="0"
-                       class="w-24 p-1 border border-gray-300 rounded-md text-sm" />
+                       class="w-24 rounded-md border border-gray-300 p-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                 <span class="text-sm text-gray-700">cells</span>
             </div>
 
@@ -234,7 +200,7 @@
                        class="mr-2 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0" />
                 <label for="qc-filter" class="text-sm text-gray-700">Keep cells with Mitochondrial % less than</label>
                 <input type="number" id="max-mt-pct" name="max_mt_pct" value="100" min="0"
-                       class="w-16 p-1 border border-gray-300 rounded-md text-sm" />
+                       class="w-16 rounded-md border border-gray-300 p-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                 <span class="text-sm text-gray-700">%</span>
             </div>
 
@@ -244,7 +210,7 @@
                        class="mr-2 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
                 <label for="data-normalize" class="text-sm text-gray-700">Normalize total expression to</label>
                 <input type="number" id="data-normalize-value" name="data_normalize_value" value="10000" min="0"
-                       class="w-24 p-1 border border-gray-300 rounded-md text-sm" />
+                       class="w-24 rounded-md border border-gray-300 p-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                 <span class="text-sm text-gray-700">per cell</span>
             </div>
 
@@ -259,8 +225,8 @@
         </div>
 
         <!-- 2D Layout Section -->
-        <div class="p-8 rounded-lg mb-4 border border-gray-200">
-            <p class="font-bold text-gray-700 mb-3 text-md">2D Layout</p>
+        <div class="app-section mb-4">
+            <p class="section-title mb-3">2D Layout</p>
             <div class="mb-3 flex items-center">
                 <input type="checkbox" id="have_2d_layout" name="have_2d_layout"
                     class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-2"
@@ -270,9 +236,9 @@
             </div>
 
             <div id="2d_layout_selection_section" class="space-y-2" style="display: none">
-                <label class="block text-gray-700 text-sm font-semibold mb-1">Select 2D Layout File:</label>
+                <label class="form-label">Select 2D Layout File:</label>
                 <select id="layout_file_2d" name="layout_file_2d"
-                    class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-white">
+                    class="form-control">
                     <option value="">-- Select a layout file --</option>
                     {% for file_info in user_files %}
                         {% if file_info.file_type == '2D Layout' %}
@@ -291,31 +257,31 @@
                 </p>
 
                 <div class="">
-                    <label for="pca_components" class="block text-sm text-gray-700 font-semibold mb-1">Number of
+                    <label for="pca_components" class="form-label">Number of
                         Principal Components:</label>
                     <input type="number" name="pca_components" id="pca_components" value="20" min="2"
-                        class="w-full p-2 border border-gray-300 rounded-md text-sm" />
+                        class="form-control" />
                 </div>
 
                 <div class="mb-3">
-                    <label for="n_neighbors" class="block text-sm text-gray-700 font-semibold mb-1">Number of
+                    <label for="n_neighbors" class="form-label">Number of
                         Neighbors (n_neighbors):</label>
                     <input type="number" name="n_neighbors" id="n_neighbors" value="15" min="2"
-                        class="w-full p-2 border border-gray-300 rounded-md text-sm" />
+                        class="form-control" />
                 </div>
 
                 <div class="mb-3">
-                    <label for="min_dist" class="block text-sm text-gray-700 font-semibold mb-1">Minimum Distance
+                    <label for="min_dist" class="form-label">Minimum Distance
                         (min_dist):</label>
                     <input type="number" step="0.01" name="min_dist" id="min_dist" value="0.3" min="0"
-                        class="w-full p-2 border border-gray-300 rounded-md text-sm" />
+                        class="form-control" />
                 </div>
 
                 <div class="">
-                    <label for="metric" class="block text-sm text-gray-700 font-semibold mb-1">Distance
+                    <label for="metric" class="form-label">Distance
                         Metric:</label>
                     <select name="metric" id="metric"
-                        class="w-full p-2 border border-gray-300 rounded-md bg-white text-sm">
+                        class="form-control">
                         <option value="cosine">cosine</option>
                         <option value="euclidean" selected>euclidean</option>
                     </select>
@@ -323,7 +289,7 @@
 
                 <div class="mb-3">
                     <div class="flex items-center space-x-1">
-                        <label for="random-state" class="block text-sm text-gray-700 font-semibold mb-1">Random State (Optional):</label>
+                        <label for="random-state" class="form-label">Random State (Optional):</label>
                         <button type="button"
                                 class="text-blue-500 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300 rounded-full info-btn"
                                 data-tooltip-id="random-state-tooltip"
@@ -336,7 +302,7 @@
                         </button>
                     </div>
                     <input type="number" id="random-state" name="random_state" min="0" max="2147483647"
-                           class="w-full p-2 border border-gray-300 rounded-md text-sm" placeholder="e.g. 42" />
+                           class="form-control" placeholder="e.g. 42" />
                     <div id="random-state-tooltip" class="hidden absolute z-10 bg-white border border-gray-300 rounded p-2 text-xs text-gray-700 shadow-md w-64">
                         <strong>Random State:</strong> This parameter sets the random seed for reproducibility. Enter an integer value to ensure the same UMAP result each time. Leave blank for random behavior.
                     </div>
@@ -345,13 +311,13 @@
         </div>
 
         <!-- Submit Button -->
-        <div class="flex items-center justify-start mt-6">
+        <div class="mt-6 flex items-center justify-start border-t border-gray-200 pt-5">
             <input type="submit" value="Start Analysis"
-                class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline cursor-pointer"
+                class="btn-primary cursor-pointer"
                 {% if not user_files %}disabled title="Upload files before creating an analysis" {% endif %} />
 
             <a href="{{ url_for('main_routes.index') }}"
-            class="ml-4 text-blue-600 border border-blue-600 hover:bg-blue-600 hover:text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline text-sm">Cancel</a>
+            class="btn-secondary ml-3">Cancel</a>
         </div>
 
     </form>

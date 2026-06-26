@@ -5,16 +5,16 @@
 {% block content %}
 
     <!-- Main content -->
-    <div class="">
+    <div class="space-y-5">
 
         <!-- Uploaded Files Section -->
-        <div class="bg-white p-4 rounded-lg shadow-md">
-            <div class="flex justify-between items-center mb-4 border-b pb-2">
-                <h2 class="text-l font-semibold text-gray-700">Your Uploaded Files</h2>
+        <div class="app-card p-4 sm:p-5">
+            <div class="section-header mb-4">
+                <h2 class="section-title">Your Uploaded Files</h2>
 
                 <!-- New "Upload" button to trigger the modal -->
                 <button id="open-upload-modal-btn"
-                    class="bg-blue-500 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-150 ease-in-out text-sm flex items-center">
+                    class="btn-primary">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                     </svg>
@@ -24,20 +24,20 @@
 
             {% if user_files %}
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File Name</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">QC</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Uploaded</th>
-                                <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">File Name</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Type</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">QC</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Size</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Uploaded</th>
+                                <th scope="col" class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             {% for file_info in user_files %}
-                            <tr class="align-top">
+                            <tr class="align-top hover:bg-gray-50">
                                 <td class="px-4 py-3 whitespace-nowrap">
                                     <div class="text-sm text-gray-900 truncate" title="{{ file_info.original_filename | default(file_info.filename, true) }}" style="max-width: 250px;">
                                         {{ file_info.original_filename | default(file_info.filename, true) }}
@@ -62,23 +62,23 @@
                                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{{ file_info.file_type | default('N/A', true) }}</td>
                                 <td class="px-4 py-3 whitespace-nowrap">
                                     {% if file_info.qc_status == 'completed' %}
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">✓ Completed</span>
+                                        <span class="status-pill bg-green-100 text-green-800">Completed</span>
                                     {% elif file_info.qc_status == 'processing' %}
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 animate-pulse">... Processing</span>
+                                        <span class="status-pill bg-yellow-100 text-yellow-800 animate-pulse">Processing</span>
                                     {% elif file_info.qc_status == 'failed' %}
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">✗ Failed</span>
+                                        <span class="status-pill bg-red-100 text-red-800">Failed</span>
                                     {% else %}
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">- N/A</span>
+                                        <span class="status-pill bg-gray-100 text-gray-700">N/A</span>
                                     {% endif %}
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{{ file_info.file_size | format_filesize }}</td>
                                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{{ file_info.upload_date | format_datetime }}</td>
                                 <td class="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                                    <a href="{{ url_for('main_routes.download_data', filename=file_info.filename) }}" class="text-indigo-600 hover:text-indigo-900 mr-4">Download</a>
+                                    <a href="{{ url_for('main_routes.download_data', filename=file_info.filename) }}" class="mr-4 text-blue-700 hover:text-blue-900 hover:underline">Download</a>
 
                                     <form method="POST" action="{{ url_for('main_routes.delete_data', filename=file_info.filename) }}" style="display:inline;">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
-                                        <button type="submit" onclick="return confirm('Are you sure you want to delete this file?');" class="text-red-600 hover:text-red-900">Delete</button>
+                                        <button type="submit" onclick="return confirm('Are you sure you want to delete this file?');" class="text-red-600 hover:text-red-900 hover:underline">Delete</button>
                                     </form>
                                 </td>
                             </tr>
@@ -111,7 +111,7 @@
              role="dialog"
         >
             <!-- Modal Content -->
-            <div class="bg-white rounded-lg shadow-lg max-w-lg w-full p-6 relative">
+            <div class="app-card max-w-lg w-full p-6 relative">
                 <!-- Modal Header -->
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-xl font-semibold text-gray-800">Upload New Data</h2>
@@ -123,7 +123,7 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
 
                     <div class="mb-4">
-                        <label for="data_file" class="block text-gray-700 text-sm font-bold mb-2">Choose a file:</label>
+                        <label for="data_file" class="form-label">Choose a file:</label>
                         <input type="file" id="data_file" name="data_file" required
                             class="block w-full text-sm text-gray-500
                                           file:mr-4 file:py-2 file:px-4
@@ -132,13 +132,13 @@
                                           file:bg-blue-50 file:text-blue-700
                                           hover:file:bg-blue-100
                                           border border-gray-300 rounded-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <p class="text-xs text-gray-500 mt-1">Allowed types: .h5ad, .txt, .csv, .tsv, etc.</p>
+                        <p class="muted-help mt-1">Allowed types: .h5ad, .txt, .csv, .tsv, etc.</p>
                     </div>
 
                     <div id="file-type-container" class="mb-4 hidden">
-                        <label for="file_type" class="block text-gray-700 text-sm font-bold mb-2">File Type:</label>
+                        <label for="file_type" class="form-label">File Type:</label>
                         <select id="file_type" name="file_type" required
-                                class="block w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                class="form-control">
                             <option value="Gene Expression">Gene Expression (e.g., counts matrix) (Cells x Genes)</option>
                             <option value="Prior Data">Prior Data</option>
                             <option value="Metadata">Metadata (e.g., cell types, conditions)</option>
@@ -148,17 +148,17 @@
                     </div>
 
                     <div class="mb-4">
-                        <label for="description" class="block text-gray-700 text-sm font-bold mb-2">Description
+                        <label for="description" class="form-label">Description
                             (optional):</label>
                         <textarea id="description" name="description" rows="3"
-                            class="shadow-sm appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                            class="form-control"></textarea>
                     </div>
 
                     <!-- Modal Footer/Actions -->
                     <div class="flex justify-end items-center mt-6">
-                         <button type="button" id="cancel-upload-btn" class="mr-4 text-gray-600 hover:text-gray-800">Cancel</button>
+                         <button type="button" id="cancel-upload-btn" class="btn-secondary mr-3">Cancel</button>
                          <input type="submit" value="Upload Data"
-                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline cursor-pointer transition duration-150 ease-in-out">
+                            class="btn-primary cursor-pointer">
                     </div>
                 </form>
             </div>
@@ -167,11 +167,11 @@
 
 
         <!-- Analysis Section -->
-        <div class="mt-4 bg-white p-4 rounded-lg shadow-md">
-            <div class="flex justify-between items-center mb-4 border-b pb-2">
-                <h2 class="text-l font-semibold text-gray-700">Your Analyses</h2>
+        <div class="app-card p-4 sm:p-5">
+            <div class="section-header mb-4">
+                <h2 class="section-title">Your Analyses</h2>
                 <a href="{{ url_for('main_routes.create_analysis_page') }}"
-                    class="bg-blue-500 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-150 ease-in-out text-sm">
+                    class="btn-primary">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block mr-1 -mt-0.5" fill="none"
                         viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
@@ -185,7 +185,7 @@
             {% if current_user_analyses %}
                 <div class="mb-4">
                     <input type="text" id="analysis-search-input" placeholder="Search analyses by name or input file..."
-                           class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+                           class="form-control"/>
                 </div>
             {% endif %}
 
@@ -194,7 +194,7 @@
             <div id="analysis-cards-container" class="space-y-4">
                 {% for analysis in current_user_analyses %}
                 <!-- Analysis Card -->
-                <div class="analysis-card bg-gray-50 border border-gray-200 rounded-lg p-4 flex justify-between items-start hover:shadow-md transition-shadow">
+                <div class="analysis-card rounded-md border border-gray-200 bg-white p-4 flex justify-between items-start transition hover:border-blue-300 hover:shadow-sm">
                     <!-- Left Side: Details -->
                     <div class="flex-grow">
                         <h3 class="text-lg font-bold text-gray-800">{{ analysis.name }}</h3>
@@ -238,14 +238,14 @@
                     <!-- Right Side: Actions -->
                     <div class="flex flex-col space-y-2 flex-shrink-0 ml-4">
                         <a href="{{ url_for('main_routes.view_analysis', analysis_id=analysis.id) }}"
-                            class="bg-blue-500 hover:bg-blue-700 text-white text-xs font-semibold py-2 px-3 rounded focus:outline-none focus:shadow-outline transition duration-150 ease-in-out text-center">
+                            class="btn-primary px-3 py-2 text-xs">
                             View
                         </a>
                         <form method="POST" action="{{ url_for('main_routes.delete_analysis', analysis_id=analysis.id) }}" style="display:inline;">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
                             <button type="submit"
                                 onclick="return confirm('Are you sure you want to delete this analysis?');"
-                                class="w-full bg-red-500 hover:bg-red-700 text-white text-xs font-semibold py-2 px-3 rounded focus:outline-none focus:shadow-outline transition duration-150 ease-in-out">
+                                class="btn-danger w-full">
                                 Delete
                             </button>
                         </form>
@@ -253,7 +253,7 @@
                         <form method="POST" action="{{ url_for('main_routes.download_analysis', analysis_id=analysis.id) }}">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
                             <button type="submit"
-                                class="w-full bg-green-500 hover:bg-green-700 text-white text-xs font-semibold py-2 px-3 rounded focus:outline-none focus:shadow-outline transition duration-150 ease-in-out">
+                                class="btn-success w-full">
                                 Download Results
                             </button>
                         </form>

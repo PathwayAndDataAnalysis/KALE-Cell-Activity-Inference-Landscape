@@ -203,6 +203,7 @@ def update_analysis_status(
     tfs=None,
     pvalues_path=None,
     activation_path=None,
+    activity_scores_path=None,
     bh_reject_path=None,
     fdr_level=None,
     p_value_threshold=None,
@@ -235,6 +236,8 @@ def update_analysis_status(
                     analysis["pvalues_path"] = pvalues_path
                 if activation_path:
                     analysis["activation_path"] = activation_path
+                if activity_scores_path:
+                    analysis["activity_scores_path"] = activity_scores_path
                 if bh_reject_path:
                     analysis["bh_reject_path"] = bh_reject_path
                 if p_value_threshold or fdr_level:

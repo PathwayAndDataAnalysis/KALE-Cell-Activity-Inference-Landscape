@@ -1,5 +1,5 @@
 [project]
-name = "tf-pred-webserver"
+name = "KALE-Cell-Activity-Inference-Landscape"
 version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.12"
@@ -20,4 +20,5 @@ dependencies = [
     "psutil>=5.9.0",
     "filelock>=3.18.0",
     "pyarrow>=20.0.0",
+    "pandas-stubs~=2.2.3",
 ]
