@@ -8,9 +8,14 @@
 <div class="space-y-5">
 
     <!-- Uploaded Files Section -->
-    <div class="app-card p-4 sm:p-5">
-        <div class="section-header mb-4">
-            <h2 class="section-title">Your uploaded files</h2>
+    <div class="app-card overflow-hidden">
+        <div class="section-header px-4 py-4 sm:px-5">
+            <div>
+                <h2 class="section-title">Your uploaded files</h2>
+                {% if user_files %}
+                <p class="muted-help mt-1">{{ user_files | length }} files available for analysis</p>
+                {% endif %}
+            </div>
 
             <!-- New "Upload" button to trigger the modal -->
             <button id="open-upload-modal-btn" class="btn-primary">
@@ -25,36 +30,36 @@
 
         {% if user_files %}
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 text-sm">
-                <thead class="bg-gray-50">
+            <table class="min-w-full text-sm">
+                <thead class="border-b border-gray-200 bg-gray-50">
                     <tr>
                         <th scope="col"
-                            class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                            class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 sm:px-5">
                             File Name</th>
                         <th scope="col"
-                            class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                            class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                             Type</th>
                         <th scope="col"
-                            class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">QC
+                            class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">QC
                         </th>
                         <th scope="col"
-                            class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                            class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                             Size</th>
                         <th scope="col"
-                            class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                            class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                             Uploaded</th>
                         <th scope="col"
-                            class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">
+                            class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 sm:px-5">
                             Actions</th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
+                <tbody class="divide-y divide-gray-200 bg-white">
                     {% for file_info in user_files %}
-                    <tr class="align-top hover:bg-gray-50">
-                        <td class="px-4 py-3 whitespace-nowrap">
-                            <div class="text-sm text-gray-900 truncate"
+                    <tr class="align-top transition hover:bg-blue-50/40">
+                        <td class="whitespace-nowrap px-4 py-3 sm:px-5">
+                            <div class="max-w-xs truncate text-sm font-medium text-gray-900"
                                 title="{{ file_info.original_filename | default(file_info.filename, true) }}"
-                                style="max-width: 250px;">
+                                >
                                 {{ file_info.original_filename | default(file_info.filename, true) }}
                             </div>
 
@@ -62,7 +67,7 @@
                             {% set desc_len = file_info.description | length %}
                             {% set max_len = 40 %}
 
-                            <div class="text-xs text-gray-500 mt-1" style="max-width: 250px;">
+                            <div class="mt-1 max-w-xs text-xs text-gray-500">
                                 {% if desc_len > max_len %}
                                 <span class="description-short">{{ file_info.description[:max_len] }}...</span>
                                 <span class="description-full hidden whitespace-normal">{{ file_info.description
@@ -76,9 +81,12 @@
                             {% endif %}
 
                         </td>
-                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{{ file_info.file_type |
-                            default('N/A', true) }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">
+                        <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                            <span class="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
+                                {{ file_info.file_type | default('N/A', true) }}
+                            </span>
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-3">
                             {% if file_info.qc_status == 'completed' %}
                             <span class="status-pill bg-green-100 text-green-800">Completed</span>
                             {% elif file_info.qc_status == 'processing' %}
@@ -89,13 +97,14 @@
                             <span class="status-pill bg-gray-100 text-gray-700">N/A</span>
                             {% endif %}
                         </td>
-                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{{ file_info.file_size |
+                        <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{{ file_info.file_size |
                             format_filesize }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{{ file_info.upload_date |
+                        <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{{ file_info.upload_date |
                             format_datetime }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                        <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium sm:px-5">
+                            <div class="flex items-center justify-end gap-2">
                             <a href="{{ url_for('main_routes.download_data', filename=file_info.filename) }}"
-                                class="mr-4 text-blue-700 hover:text-blue-900 hover:underline">Download</a>
+                                class="inline-flex items-center rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50">Download</a>
 
                             <form method="POST"
                                 action="{{ url_for('main_routes.delete_data', filename=file_info.filename) }}"
@@ -103,8 +112,9 @@
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
                                 <button type="submit"
                                     onclick="return confirm('Are you sure you want to delete this file?');"
-                                    class="text-red-600 hover:text-red-900 hover:underline">Delete</button>
+                                    class="inline-flex items-center rounded-md px-2.5 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 hover:text-red-700">Delete</button>
                             </form>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -113,7 +123,7 @@
         </div>
 
         {% else %}
-        <div class="text-center py-6">
+        <div class="px-4 py-10 text-center sm:px-5">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-2" fill="none"
                 viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                 <path stroke-linecap="round" stroke-linejoin="round"
@@ -187,9 +197,14 @@
 
 
     <!-- Analysis Section -->
-    <div class="app-card p-4 sm:p-5">
-        <div class="section-header mb-4">
-            <h3 class="section-title">Your Analyses</h3>
+    <div class="app-card overflow-hidden">
+        <div class="section-header px-4 py-4 sm:px-5">
+            <div>
+                <h3 class="section-title">Your Analyses</h3>
+                {% if current_user_analyses %}
+                <p class="muted-help mt-1">{{ current_user_analyses | length }} analyses in this workspace</p>
+                {% endif %}
+            </div>
             <a href="{{ url_for('main_routes.create_analysis_page') }}" class="btn-primary">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block mr-1 -mt-0.5" fill="none"
                     viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -202,7 +217,7 @@
 
         <!-- Search Bar -->
         {% if current_user_analyses %}
-        <div class="mb-4">
+        <div class="border-b border-gray-200 px-4 py-3 sm:px-5">
             <input type="text" id="analysis-search-input" placeholder="Search analyses by name or input file..."
                 class="form-control" />
         </div>
@@ -210,88 +225,107 @@
 
         {% if current_user_analyses %}
         <!-- Container for Analysis Cards -->
-        <div id="analysis-cards-container" class="space-y-4">
+        <div id="analysis-cards-container" class="space-y-3 bg-gray-50/60 p-4 sm:p-5">
             {% for analysis in current_user_analyses %}
 
             <!-- Analysis Card -->
             <div
-                class="analysis-card rounded-md border border-gray-200 bg-white p-4 flex justify-between items-start transition hover:border-blue-300 hover:shadow-sm">
-                <!-- Left Side: Details -->
-                <div class="flex-grow">
-                    <h3 class="text-sm font-semibold text-gray-800">{{ analysis.name }}</h3>
+                class="analysis-card flex flex-col rounded-md border border-gray-200 bg-white p-4 shadow-sm transition hover:border-blue-300 hover:shadow-md">
+                <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <!-- Left Side: Details -->
+                    <div class="min-w-0 flex-grow">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h3 class="truncate text-base font-semibold text-gray-900">{{ analysis.name }}</h3>
 
-                    <!-- Status -->
-                    <p class="text-sm font-semibold mt-1 flex items-center
-                            {% if analysis.status == 'Completed' %} text-green-600
-                            {% elif analysis.status == 'Failed' %} text-red-600
-                            {% elif analysis.status == 'Pending' or analysis.status == 'In Progress' %} text-blue-600
-                            {% else %} text-yellow-600 {% endif %}">
-                        {% if analysis.status == 'Completed' %}
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        {% elif analysis.status == 'Failed' %}
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        {% else %}
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5 animate-spin" fill="none"
-                            viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M4 4v5h5M20 20v-5h-5" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M4 9a9 9 0 0114.13-6.36M20 15a9 9 0 01-14.13 6.36" />
-                        </svg>
-                        {% endif %}
-                        {{ analysis.status }}
-                    </p>
+                            <!-- Status -->
+                            <span class="status-pill
+                                    {% if analysis.status == 'Completed' %} bg-green-100 text-green-800
+                                    {% elif analysis.status == 'Failed' %} bg-red-100 text-red-800
+                                    {% elif analysis.status == 'Pending' or analysis.status == 'In Progress' %} bg-blue-100 text-blue-800
+                                    {% else %} bg-yellow-100 text-yellow-800 {% endif %}">
+                                {% if analysis.status == 'Completed' %}
+                                <svg xmlns="http://www.w3.org/2000/svg" class="mr-1 h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                {% elif analysis.status == 'Failed' %}
+                                <svg xmlns="http://www.w3.org/2000/svg" class="mr-1 h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                {% else %}
+                                <svg xmlns="http://www.w3.org/2000/svg" class="mr-1 h-3.5 w-3.5 animate-spin" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 4v5h5M20 20v-5h-5" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 9a9 9 0 0114.13-6.36M20 15a9 9 0 01-14.13 6.36" />
+                                </svg>
+                                {% endif %}
+                                {{ analysis.status }}
+                            </span>
+                        </div>
 
-                    <!-- Input Files -->
-                    <div class="mt-2 text-xs text-gray-600 space-y-1">
-                        <div><strong>Gene Expression:</strong> {{ analysis.display_inputs.gene_expression |
-                            default('N/A', true) }}</div>
-                        {% if analysis.display_inputs.metadata %}
-                        <div><strong>Metadata:</strong> {{ analysis.display_inputs.metadata }}</div>
+                        <!-- Input Files -->
+                        <div class="mt-3 grid gap-2 text-xs text-gray-600 sm:grid-cols-2 lg:grid-cols-3">
+                            <div class="min-w-0 rounded-md bg-gray-50 px-3 py-2">
+                                <p class="font-semibold text-gray-500">Gene Expression</p>
+                                <p class="mt-1 truncate text-gray-800" title="{{ analysis.display_inputs.gene_expression | default('N/A', true) }}">
+                                    {{ analysis.display_inputs.gene_expression | default('N/A', true) }}
+                                </p>
+                            </div>
+                            {% if analysis.display_inputs.metadata %}
+                            <div class="min-w-0 rounded-md bg-gray-50 px-3 py-2">
+                                <p class="font-semibold text-gray-500">Metadata</p>
+                                <p class="mt-1 truncate text-gray-800" title="{{ analysis.display_inputs.metadata }}">
+                                    {{ analysis.display_inputs.metadata }}
+                                </p>
+                            </div>
+                            {% endif %}
+                            <div class="min-w-0 rounded-md bg-gray-50 px-3 py-2">
+                                <p class="font-semibold text-gray-500">Layout</p>
+                                <p class="mt-1 truncate text-gray-800" title="{{ analysis.display_inputs.layout | default('N/A', true) }}">
+                                    {{ analysis.display_inputs.layout | default('N/A', true) }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Error Message -->
+                        {% if analysis.error %}
+                        <p class="mt-3 rounded-md border border-red-200 bg-red-50 p-2 text-sm text-red-700">
+                            <strong>Error:</strong> {{ analysis.error }}
+                        </p>
                         {% endif %}
-                        <div><strong>Layout:</strong> {{ analysis.display_inputs.layout | default('N/A', true) }}</div>
                     </div>
 
-                    <!-- Error Message -->
-                    {% if analysis.error %}
-                    <p class="text-sm text-red-600 mt-2 p-2 bg-red-50 rounded border border-red-200">
-                        <strong>Error:</strong> {{ analysis.error }}
-                    </p>
-                    {% endif %}
-
-                    <!-- Footer -->
-                    <p class="text-xs text-gray-400 mt-3">Created: {{ analysis.created_at | format_datetime }}</p>
+                    <div class="flex-shrink-0 text-xs text-gray-500 md:text-right">
+                        Created<br class="hidden md:block">
+                        <span class="font-medium text-gray-700">{{ analysis.created_at | format_datetime }}</span>
+                    </div>
                 </div>
 
-                <!-- Right Side: Actions -->
-                <div class="flex flex-col space-y-2 flex-shrink-0 ml-4">
+                <!-- Actions -->
+                <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
                     <a href="{{ url_for('main_routes.view_analysis', analysis_id=analysis.id) }}"
-                        class="btn-primary px-3 py-2 text-xs">
+                        class="btn-primary px-3 py-1.5 text-xs">
                         View
                     </a>
+                    <form method="POST"
+                        action="{{ url_for('main_routes.download_analysis', analysis_id=analysis.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+                        <button type="submit" class="btn-secondary px-3 py-1.5 text-xs">
+                            Download Results
+                        </button>
+                    </form>
                     <form method="POST" action="{{ url_for('main_routes.delete_analysis', analysis_id=analysis.id) }}"
                         style="display:inline;">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
                         <button type="submit"
                             onclick="return confirm('Are you sure you want to delete this analysis?');"
-                            class="btn-danger w-full">
+                            class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
                             Delete
-                        </button>
-                    </form>
-
-                    <form method="POST"
-                        action="{{ url_for('main_routes.download_analysis', analysis_id=analysis.id) }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
-                        <button type="submit" class="btn-success w-full">
-                            Download Results
                         </button>
                     </form>
                 </div>
