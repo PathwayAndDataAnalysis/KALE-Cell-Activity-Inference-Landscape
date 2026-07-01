@@ -4,33 +4,35 @@ document.addEventListener("DOMContentLoaded", function () {
 	const REMOVE_DELAY_AFTER_FADE = 500;
 
 	flashMessages.forEach(function (message, index) {
-		setTimeout(function () {
-			message.classList.add("fade-out");
-			setTimeout(function () {
-				if (message.parentNode) {
-					message.remove();
-				}
-			}, REMOVE_DELAY_AFTER_FADE);
-		}, FADE_DELAY + index * 300);
+		setTimeout(
+			function () {
+				message.classList.add("fade-out");
+				setTimeout(function () {
+					if (message.parentNode) {
+						message.remove();
+					}
+				}, REMOVE_DELAY_AFTER_FADE);
+			},
+			FADE_DELAY + index * 300,
+		);
 	});
-
 });
 
-function addInputValidation(inputId, min, max=null) {
-    const input = document.getElementById(inputId);
-    if (!input) return;
-    input.addEventListener("input", function () {
-        if (this.value === "") return;
+function addInputValidation(inputId, min, max = null) {
+	const input = document.getElementById(inputId);
+	if (!input) return;
+	input.addEventListener("input", function () {
+		if (this.value === "") return;
 
-        let value = Number(this.value);
+		let value = Number(this.value);
 
-        if (isNaN(value)) {
-            this.value = "";
-            return;
-        }
-        if (value < min) this.value = min;
+		if (isNaN(value)) {
+			this.value = "";
+			return;
+		}
+		if (value < min) this.value = min;
 		if (max !== null && value > max) {
 			this.value = max;
 		}
-    });
+	});
 }

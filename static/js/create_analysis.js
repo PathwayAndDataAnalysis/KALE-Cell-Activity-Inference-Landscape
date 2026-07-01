@@ -10,8 +10,8 @@ const geneExpFile = document.getElementById("gene_exp_file");
 const speciesSelection = document.getElementById("species");
 const metadataFile = document.getElementById("metadata_file");
 
-const qcPlotGeneExpressionStats = document.getElementById("qc-plot-gene-expression-stats")
-const qcPlotGenesPerCellStats = document.getElementById("qc-plot-genes-per-cell-stats")
+const qcPlotGeneExpressionStats = document.getElementById("qc-plot-gene-expression-stats");
+const qcPlotGenesPerCellStats = document.getElementById("qc-plot-genes-per-cell-stats");
 const qcPlotCellsPerGeneStats = document.getElementById("qc-plot-cells-per-gene-stats");
 const qcPlotMTPercentStats = document.getElementById("qc-plot-mt-percent-stats");
 
@@ -108,9 +108,9 @@ document.addEventListener("DOMContentLoaded", function () {
 		for (let file of user_files) {
 			if (selectedFilename === file.filename) {
 				const qcMetrics = file.qc_metrics;
-				const hasCounts = (metric) => metric && Array.isArray(metric.counts) && metric.counts.length > 0;
-				if (!qcMetrics || typeof qcMetrics !== "object")
-					return;
+				const hasCounts = (metric) =>
+					metric && Array.isArray(metric.counts) && metric.counts.length > 0;
+				if (!qcMetrics || typeof qcMetrics !== "object") return;
 
 				// Animate in
 				plotsContainer.classList.remove("hidden");
@@ -123,11 +123,10 @@ document.addEventListener("DOMContentLoaded", function () {
 						qcMetrics.gene_expression,
 						"Gene Expression",
 						"Expression Level",
-						"Cell Count"
+						"Cell Count",
 					);
 
-					qcPlotGeneExpressionStats.innerHTML =
-						`<div class="flex justify-between w-full">
+					qcPlotGeneExpressionStats.innerHTML = `<div class="flex justify-between w-full">
 							<p class="text-xs mt-2 font-mono text-gray-500">
 								<span class="font-semibold">Min. Value: </span>${qcMetrics.gene_expression.min}
 							</p>
@@ -141,8 +140,7 @@ document.addEventListener("DOMContentLoaded", function () {
 								<span class="font-semibold">Max. Value: </span>${qcMetrics.gene_expression.max}
 							</p>
 						</div>`;
-				}
-				else {
+				} else {
 					plotDivs.qcPlotGeneExpression.classList.add("hidden");
 					qcPlotGeneExpressionStats.innerHTML = `<div class="text-center text-gray-500 p-4">No data available for Gene Expression.</div>`;
 				}
@@ -153,11 +151,10 @@ document.addEventListener("DOMContentLoaded", function () {
 						qcMetrics.n_genes_by_counts,
 						"Genes per Cell",
 						"Number of Genes",
-						"Cell Count"
+						"Cell Count",
 					);
 
-					qcPlotGenesPerCellStats.innerHTML =
-						`<div class="flex justify-between w-full">
+					qcPlotGenesPerCellStats.innerHTML = `<div class="flex justify-between w-full">
 							<p class="text-xs mt-2 font-mono text-gray-500">
 								<span class="font-semibold">Min. Value: </span>${qcMetrics.n_genes_by_counts.min}
 							</p>
@@ -171,8 +168,7 @@ document.addEventListener("DOMContentLoaded", function () {
 								<span class="font-semibold">Max. Value: </span>${qcMetrics.n_genes_by_counts.max}
 							</p>
 						</div>`;
-				}
-				else {
+				} else {
 					plotDivs.qcPlotGenesPerCell.classList.add("hidden");
 					qcPlotGenesPerCellStats.innerHTML = `<div class="text-center text-gray-500 p-4">No data available for Genes per Cell.</div>`;
 				}
@@ -183,10 +179,9 @@ document.addEventListener("DOMContentLoaded", function () {
 						qcMetrics.n_cells_by_counts,
 						"Cells per Gene",
 						"Number of Cells",
-						"Gene Count"
+						"Gene Count",
 					);
-					qcPlotCellsPerGeneStats.innerHTML =
-						`<div class="flex justify-between w-full">
+					qcPlotCellsPerGeneStats.innerHTML = `<div class="flex justify-between w-full">
 							<p class="text-xs mt-2 font-mono text-gray-500">
 								<span class="font-semibold">Min. Value: </span>${qcMetrics.n_cells_by_counts.min}
 							</p>
@@ -200,10 +195,9 @@ document.addEventListener("DOMContentLoaded", function () {
 								<span class="font-semibold">Max. Value: </span>${qcMetrics.n_cells_by_counts.max}
 							</p>
 						</div>`;
-				}
-				else {
+				} else {
 					plotDivs.qcPlotCellsPerGene.classList.add("hidden");
-					qcPlotCellsPerGeneStats.innerHTML = `<div class="text-center text-gray-500 p-4">No data available for Cells per Gene.</div>`
+					qcPlotCellsPerGeneStats.innerHTML = `<div class="text-center text-gray-500 p-4">No data available for Cells per Gene.</div>`;
 				}
 
 				if (hasCounts(qcMetrics.pct_counts_mt)) {
@@ -212,11 +206,10 @@ document.addEventListener("DOMContentLoaded", function () {
 						qcMetrics.pct_counts_mt,
 						"Mitochondrial Content %",
 						"% MT",
-						"Cell Count"
+						"Cell Count",
 					);
 
-						qcPlotMTPercentStats.innerHTML =
-							`<div class="flex justify-between w-full">
+					qcPlotMTPercentStats.innerHTML = `<div class="flex justify-between w-full">
 								<p class="text-xs mt-2 font-mono text-gray-500">
 									<span class="font-semibold">Min. Value: </span>${qcMetrics.pct_counts_mt.min}
 								</p>
@@ -230,9 +223,8 @@ document.addEventListener("DOMContentLoaded", function () {
 									<span class="font-semibold">Max. Value: </span>${qcMetrics.pct_counts_mt.max}
 								</p>
 							</div>`;
-				}
-				else {
-					plotDivs.qcPlotMTPercent.classList.add("hidden")
+				} else {
+					plotDivs.qcPlotMTPercent.classList.add("hidden");
 					qcPlotMTPercentStats.innerHTML = `<div class="text-center text-gray-500 p-4">No data available for Mitochondrial Content %.</div>`;
 				}
 
@@ -246,13 +238,15 @@ document.addEventListener("DOMContentLoaded", function () {
 		}, 500);
 	}
 
-	if (geneExpFile) geneExpFile.addEventListener("change", function () {
-		showQcPlotsForFile(geneExpFile.value);
-	});
+	if (geneExpFile)
+		geneExpFile.addEventListener("change", function () {
+			showQcPlotsForFile(geneExpFile.value);
+		});
 
-	if (h5adFileSelection) h5adFileSelection.addEventListener("change", function () {
-		showQcPlotsForFile(h5adFileSelection.value);
-	});
+	if (h5adFileSelection)
+		h5adFileSelection.addEventListener("change", function () {
+			showQcPlotsForFile(h5adFileSelection.value);
+		});
 
 	// Validation for input fields
 	addInputValidation("min-genes", 0);
@@ -263,42 +257,41 @@ document.addEventListener("DOMContentLoaded", function () {
 	addInputValidation("n_neighbors", 2);
 	addInputValidation("min_dist", 0.0, 1.0);
 	addInputValidation("random-state", 0);
-	addInputValidation("fdr_level",0.0, 1.0);
-
+	addInputValidation("fdr_level", 0.0, 1.0);
 
 	// Reusable tooltip logic for all info buttons
-    const infoButtons = document.querySelectorAll('.info-btn');
-    let openTooltip = null;
+	const infoButtons = document.querySelectorAll(".info-btn");
+	let openTooltip = null;
 
-    infoButtons.forEach(btn => {
-        btn.addEventListener('click', function (e) {
-            e.stopPropagation();
-            // Hide any open tooltip
-            if (openTooltip) openTooltip.classList.add('hidden');
-            // Show the clicked tooltip
-            const tooltipId = btn.getAttribute('data-tooltip-id');
-            const tooltip = document.getElementById(tooltipId);
-            if (tooltip) {
-                tooltip.classList.toggle('hidden');
-                // Position tooltip below the button
-                const rect = btn.getBoundingClientRect();
-                tooltip.style.top = (rect.bottom + window.scrollY + 5) + "px";
-                tooltip.style.left = (rect.left + window.scrollX) + "px";
-                openTooltip = tooltip;
-            }
-        });
-    });
+	infoButtons.forEach((btn) => {
+		btn.addEventListener("click", function (e) {
+			e.stopPropagation();
+			// Hide any open tooltip
+			if (openTooltip) openTooltip.classList.add("hidden");
+			// Show the clicked tooltip
+			const tooltipId = btn.getAttribute("data-tooltip-id");
+			const tooltip = document.getElementById(tooltipId);
+			if (tooltip) {
+				tooltip.classList.toggle("hidden");
+				// Position tooltip below the button
+				const rect = btn.getBoundingClientRect();
+				tooltip.style.top = rect.bottom + window.scrollY + 5 + "px";
+				tooltip.style.left = rect.left + window.scrollX + "px";
+				openTooltip = tooltip;
+			}
+		});
+	});
 
-    // Hide tooltip when clicking outside
-    document.addEventListener('click', function () {
-        if (openTooltip) openTooltip.classList.add('hidden');
-        openTooltip = null;
-    });
+	// Hide tooltip when clicking outside
+	document.addEventListener("click", function () {
+		if (openTooltip) openTooltip.classList.add("hidden");
+		openTooltip = null;
+	});
 
-    // Prevent closing when clicking inside tooltip
-    document.querySelectorAll('.z-10').forEach(tooltip => {
-        tooltip.addEventListener('click', function (e) {
-            e.stopPropagation();
-        });
-    });
+	// Prevent closing when clicking inside tooltip
+	document.querySelectorAll(".z-10").forEach((tooltip) => {
+		tooltip.addEventListener("click", function (e) {
+			e.stopPropagation();
+		});
+	});
 });

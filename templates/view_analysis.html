@@ -1,90 +1,89 @@
 {% extends "base.html" %} {% block title %}View Analysis - {{ analysis.name }}{% endblock %} {%
 block content %}
 <div class="flex min-h-[calc(100vh-6.5rem)] flex-1 flex-col">
-	<div class="mb-4 flex flex-shrink-0 items-center justify-between border-b border-gray-200 pb-3">
+    <div class="mb-4 flex flex-shrink-0 items-center justify-between border-b border-gray-200 pb-3">
         <div>
             <div class="flex items-center space-x-4">
-                <h1 class="text-2xl font-semibold text-gray-900">
+                <h1 class="text-xl font-semibold text-gray-900">
                     {{ analysis.name }}
                 </h1>
-                <button
-                    id="more-info-btn"
-                    type="button"
-                    class="btn-secondary"
-                >
+                <button id="more-info-btn" type="button" class="btn-secondary">
                     <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" />
                     </svg>
                     More Info
                 </button>
             </div>
 
             <!-- Modal -->
-            <div
-                id="more-info-modal"
+            <div id="more-info-modal"
                 class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 hidden"
-                aria-modal="true"
-                role="dialog"
-            >
+                aria-modal="true" role="dialog">
                 <div class="app-card max-w-lg w-full p-6 relative">
-                    <button
-                        id="close-modal-btn"
+                    <button id="close-modal-btn"
                         class="absolute top-2 right-2 text-gray-400 hover:text-gray-700 focus:outline-none"
-                        aria-label="Close"
-                    >
+                        aria-label="Close">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
-                    <h3 class="mb-2 text-xl font-semibold text-gray-900">Parameters and Information</h3>
+                    <h3 class="mb-2 text-md font-semibold text-gray-900">Parameters and Information</h3>
                     <div class="text-gray-700 text-sm space-y-2">
                         <p><strong>Name:</strong> {{ analysis.name }}</p>
                         <p><strong>Status:</strong> {{ analysis.status }}</p>
                         <p><strong>Created:</strong> {{ analysis.created_at | format_datetime }}</p>
 
 
-                        <hr/>
+                        <hr />
                         <p><strong>Gene Expression</strong></p>
                         {% if analysis.inputs.gene_expression.source == "h5ad" %}
-                            <p><strong>h5ad File:</strong> {{ analysis.inputs.gene_expression.h5ad_filepath | basename }}</p>
+                        <p><strong>h5ad File:</strong> {{ analysis.inputs.gene_expression.h5ad_filepath | basename }}
+                        </p>
                         {% else %}
-                            <p><strong>Gene Exp File:</strong> {{ analysis.inputs.gene_expression.gene_exp_filepath | basename }}</p>
-                            {% if analysis.inputs.gene_expression.metadata_filepath %}
-                                <p><strong>Metadata File:</strong> {{ analysis.inputs.gene_expression.metadata_filepath | basename }}</p>
-                            {% endif %}
+                        <p><strong>Gene Exp File:</strong> {{ analysis.inputs.gene_expression.gene_exp_filepath |
+                            basename }}</p>
+                        {% if analysis.inputs.gene_expression.metadata_filepath %}
+                        <p><strong>Metadata File:</strong> {{ analysis.inputs.gene_expression.metadata_filepath |
+                            basename }}</p>
+                        {% endif %}
                         {% endif %}
 
 
-                        <hr/>
+                        <hr />
                         <p><strong>Data Filtering</strong></p>
                         {% if analysis.inputs.data_filtering.filter_cells %}
-                            <p><strong>Filter Cells:</strong> {{ analysis.inputs.data_filtering.min_genes }} genes</p>
+                        <p><strong>Filter Cells:</strong> {{ analysis.inputs.data_filtering.min_genes }} genes</p>
                         {% endif %}
                         {% if analysis.inputs.data_filtering.filter_genes %}
-                            <p><strong>Filter Genes:</strong> {{ analysis.inputs.data_filtering.min_cells }} cells</p>
+                        <p><strong>Filter Genes:</strong> {{ analysis.inputs.data_filtering.min_cells }} cells</p>
                         {% endif %}
                         {% if analysis.inputs.data_filtering.qc_filter %}
-                            <p><strong>Filter Mitochondrial (MT) genes:</strong> {{ analysis.inputs.data_filtering.max_mt_pct }} %</p>
+                        <p><strong>Filter Mitochondrial (MT) genes:</strong> {{
+                            analysis.inputs.data_filtering.max_mt_pct }} %</p>
                         {% endif %}
                         {% if analysis.inputs.data_filtering.data_normalize %}
-                            <p><strong>Normalize Total Expression:</strong> {{ analysis.inputs.data_filtering.data_normalize_value }} per cell</p>
+                        <p><strong>Normalize Total Expression:</strong> {{
+                            analysis.inputs.data_filtering.data_normalize_value }} per cell</p>
                         {% endif %}
                         <p><strong>Log Transform:</strong> {{ analysis.inputs.data_filtering.log_transform }}</p>
 
 
-                        <hr/>
+                        <hr />
                         <p><strong>UMAP Parameters</strong></p>
                         {% if analysis.inputs.layout.source == "UMAP_GENERATED" %}
-                            <p><strong>Source:</strong> UMAP Generated</p>
-                            <p><strong>Number of PCA Comps.:</strong> {{ analysis.inputs.layout.umap_settings.pca_components }}</p>
-                            <p><strong>n_neighbors:</strong> {{ analysis.inputs.layout.umap_settings.n_neighbors }}</p>
-                            <p><strong>min_dist:</strong> {{ analysis.inputs.layout.umap_settings.min_dist }}</p>
-                            <p><strong>metric:</strong> {{ analysis.inputs.layout.umap_settings.metric }}</p>
-                            {% if analysis.inputs.layout.umap_settings.random_state and analysis.inputs.layout.umap_settings.random_state != 0 %}
-                                <p><strong>random_state:</strong> {{ analysis.inputs.layout.umap_settings.random_state }}</p>
-                            {% endif %}
+                        <p><strong>Source:</strong> UMAP Generated</p>
+                        <p><strong>Number of PCA Comps.:</strong> {{ analysis.inputs.layout.umap_settings.pca_components
+                            }}</p>
+                        <p><strong>n_neighbors:</strong> {{ analysis.inputs.layout.umap_settings.n_neighbors }}</p>
+                        <p><strong>min_dist:</strong> {{ analysis.inputs.layout.umap_settings.min_dist }}</p>
+                        <p><strong>metric:</strong> {{ analysis.inputs.layout.umap_settings.metric }}</p>
+                        {% if analysis.inputs.layout.umap_settings.random_state and
+                        analysis.inputs.layout.umap_settings.random_state != 0 %}
+                        <p><strong>random_state:</strong> {{ analysis.inputs.layout.umap_settings.random_state }}</p>
+                        {% endif %}
                         {% else %}
-                            <p><strong>Source:</strong> {{ analysis.inputs.gene_expression.gene_exp_filepath }}</p>
+                        <p><strong>Source:</strong> {{ analysis.inputs.gene_expression.gene_exp_filepath }}</p>
                         {% endif %}
                     </div>
                 </div>
@@ -92,51 +91,33 @@ block content %}
 
         </div>
 
-		<a
-			href="{{ url_for('main_routes.index') }}"
-			class="btn-secondary"
-		>
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				class="h-4 w-4 inline-block mr-1 -mt-0.5"
-				fill="none"
-				viewBox="0 0 24 24"
-				stroke="currentColor"
-				stroke-width="2"
-			>
-				<path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-			</svg>
-			Back to Home
-		</a>
-	</div>
+        <a href="{{ url_for('main_routes.index') }}" class="btn-secondary">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block mr-1 -mt-0.5" fill="none"
+                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Back to Home
+        </a>
+    </div>
 
-	<div class="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-4">
-		<!-- Plot Display Area -->
-		<div class="app-card flex min-h-0 flex-col p-4 md:col-span-3">
-			<h2 id="plot-title" class="section-title mb-4 flex-shrink-0 border-b border-gray-200 pb-2">UMAP Plot</h2>
-			<div
-				id="umap-plot-container"
-				class="relative flex min-h-[480px] w-full flex-1 items-center justify-center rounded-md border border-gray-200 bg-white"
-			>
-				<div class="w-full h-full" id="scatterPlot"></div>
-				<div
-					id="plot-loading-spinner"
-					class="hidden absolute z-10 -translate-x-1/2 -translate-y-1/2"
-				>
-					<div
-						class="w-12 h-12 border-8 border-gray-200 border-t-blue-500 rounded-full animate-spin"
-					></div>
-				</div>
-			</div>
-			<div class="mt-1 flex flex-shrink-0 justify-between">
+    <div class="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-4">
+        <!-- Plot Display Area -->
+        <div class="app-card flex min-h-0 flex-col p-4 md:col-span-3">
+            <h2 id="plot-title" class="section-title mb-4 flex-shrink-0 border-b border-gray-200 pb-2">UMAP Plot</h2>
+            <div id="umap-plot-container"
+                class="relative flex min-h-[480px] w-full flex-1 items-center justify-center rounded-md border border-gray-200 bg-white">
+                <div class="w-full h-full" id="scatterPlot"></div>
+                <div id="plot-loading-spinner" class="hidden absolute z-10 -translate-x-1/2 -translate-y-1/2">
+                    <div class="w-12 h-12 border-8 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
+                </div>
+            </div>
+            <div class="mt-1 flex flex-shrink-0 justify-between">
                 <div>
                     <p class="text-sm text-gray-600">
                         <strong>Status:</strong>
                         <span
-                            class="font-semibold {% if analysis.status == 'Completed' %} text-green-600 {% elif analysis.status == 'Failed' %} text-red-600 {% elif analysis.status == 'Running' %} text-blue-600 {% else %} text-yellow-600 {% endif %}"
-                        >
-                            {{ analysis.status }}</span
-                        >
+                            class="font-semibold {% if analysis.status == 'Completed' %} text-green-600 {% elif analysis.status == 'Failed' %} text-red-600 {% elif analysis.status == 'Running' %} text-blue-600 {% else %} text-yellow-600 {% endif %}">
+                            {{ analysis.status }}</span>
                     </p>
                     <p class="text-xs text-gray-500 mt-1">
                         <strong>Created:</strong> {{ analysis.created_at | format_datetime }}
@@ -145,35 +126,27 @@ block content %}
                 <div>
                     <p id="total-cells" class="mt-4 font-mono text-gray-600 text-sm font-semibold"></p>
                 </div>
-			</div>
-		</div>
+            </div>
+        </div>
 
-		<!-- Configuration Panel -->
-		<div class="app-card flex flex-col p-4 md:col-span-1 md:self-start">
-			<h2 class="section-title mb-4 border-b border-gray-200 pb-2">Plot Configuration</h2>
-			<form id="plot-config-form" class="flex flex-col flex-grow">
-				<div>
-					<!-- Wrapper for form elements -->
+        <!-- Configuration Panel -->
+        <div class="app-card flex flex-col p-4 md:col-span-1 md:self-start">
+            <h2 class="section-title mb-4 border-b border-gray-200 pb-2">Plot Configuration</h2>
+            <form id="plot-config-form" class="flex flex-col flex-grow">
+                <div>
+                    <!-- Wrapper for form elements -->
                     <div class="mb-4">
-						<label for="plot-type" class="block text-sm font-medium text-gray-700 mb-1">Plot type:</label>
-						<select
-							id="plot-type"
-							name="plot_type"
-							class="form-control"
-                        >
+                        <label for="plot-type" class="block text-sm font-medium text-gray-700 mb-1">Plot type:</label>
+                        <select id="plot-type" name="plot_type" class="form-control">
                             <option value="umap_plot">UMAP</option>
                             <option value="pca_plot">PCA</option>
-						</select>
-					</div>
+                        </select>
+                    </div>
 
                     <div class="rounded-md border border-gray-200 bg-gray-50 px-3 pt-3">
                         <div class="mb-4">
                             <label for="color-by" class="block text-sm font-medium text-gray-700 mb-1">Color by:</label>
-                            <select
-                                id="color-by"
-                                name="color_by"
-                                class="form-control"
-                            >
+                            <select id="color-by" name="color_by" class="form-control">
                                 <option value="select_cluster_type">---Select Cluster Type---</option>
                                 <option value="metadata_columns">Metadata Columns</option>
                                 <option value="tf_activity">TF Activity</option>
@@ -182,51 +155,38 @@ block content %}
                         </div>
 
                         <div id="metadata-column-selection-div" class="mb-4 hidden">
-                            <label for="metadata-column-name" class="block text-sm font-medium text-gray-700 mb-1"
-                                >Metadata Column:</label>
-                            <select
-                                id="metadata-column-name"
-                                name="metadata_column_name"
-                                class="form-control">
+                            <label for="metadata-column-name"
+                                class="block text-sm font-medium text-gray-700 mb-1">Metadata Column:</label>
+                            <select id="metadata-column-name" name="metadata_column_name" class="form-control">
                                 <option value="select_metadata_column">---Select Metadata Column---</option>
                                 {% for column in analysis.metadata_cols %}
-                                    <option value="{{ column }}">{{ column }}</option>
+                                <option value="{{ column }}">{{ column }}</option>
                                 {% endfor %}
                             </select>
                         </div>
 
                         <div id="tf-selection-div" class="mb-4 hidden">
-                            <label for="tf-name-select" class="block text-sm font-medium text-gray-700 mb-1">TF Name:</label>
-                            <select
-                                id="tf-name-select"
-                                name="tf_name_select"
-                                class="form-control mt-2"
-                            >
+                            <label for="tf-name-select" class="block text-sm font-medium text-gray-700 mb-1">TF
+                                Name:</label>
+                            <select id="tf-name-select" name="tf_name_select" class="form-control mt-2">
                                 <option value="select_tf">---Select Transcription Factor---</option>
                                 {% for tf in analysis.tfs %}
-                                    <option value="{{ tf }}">{{ tf }}</option>
+                                <option value="{{ tf }}">{{ tf }}</option>
                                 {% endfor %}
                             </select>
                         </div>
 
                         <div id="gene-entry-div" class="mb-4 hidden">
-                            <label for="gene-entry-input" class="block text-sm font-medium text-gray-700 mb-1">Enter Gene:</label>
-                            <input
-                                type="text"
-                                id="gene-entry-input"
-                                name="gene_entry"
-                                class="form-control"
-                                placeholder="Enter Gene Name"
-                            />
+                            <label for="gene-entry-input" class="block text-sm font-medium text-gray-700 mb-1">Enter
+                                Gene:</label>
+                            <input type="text" id="gene-entry-input" name="gene_entry" class="form-control"
+                                placeholder="Enter Gene Name" />
                         </div>
 
                         <div id="color-scale-selection-div" class="mb-4 hidden">
-                            <label for="color-scale-select" class="block text-sm font-medium text-gray-700 mb-1">Select Color Scale</label>
-                            <select
-                                id="color-scale-select"
-                                name="color-scale-select"
-                                class="form-control mt-2"
-                            >
+                            <label for="color-scale-select" class="block text-sm font-medium text-gray-700 mb-1">Select
+                                Color Scale</label>
+                            <select id="color-scale-select" name="color-scale-select" class="form-control mt-2">
                                 <option value="Viridis">Viridis</option>
                                 <option value="Plasma">Plasma</option>
                                 <option value="Inferno">Inferno</option>
@@ -240,11 +200,13 @@ block content %}
                                 <option value="Greys">Greys</option>
                             </select>
 
-                            <p class="text-xs text-gray-500 mt-1">Displays z-score values for gene expression intensity.</p>
+                            <p class="text-xs text-gray-500 mt-1">Displays z-score values for gene expression intensity.
+                            </p>
                         </div>
                     </div>
 
-                    <div id="change-threshold-type-div" class="my-2 hidden rounded-md border border-gray-200 bg-gray-50 p-3">
+                    <div id="change-threshold-type-div"
+                        class="my-2 hidden rounded-md border border-gray-200 bg-gray-50 p-3">
                         <label for="change-threshold-type" class="block text-sm text-gray-700 font-medium mb-1">
                             Significance Threshold Type:
                         </label>
@@ -252,49 +214,29 @@ block content %}
                         <div class="flex flex-row justify-between space-x-2">
                             <div>
                                 <div class="flex items-center">
-                                    <input
-                                        type="radio"
-                                        id="fdr-correction-radio"
-                                        name="threshold_type"
+                                    <input type="radio" id="fdr-correction-radio" name="threshold_type"
                                         value="fdr_correction"
-                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                                        checked
-                                    />
-                                    <label for="fdr-correction-radio" class="ml-2 text-sm text-gray-700">FDR Correction</label>
+                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300" checked />
+                                    <label for="fdr-correction-radio" class="ml-2 text-sm text-gray-700">FDR
+                                        Correction</label>
                                 </div>
-                                <input
-                                    type="number"
-                                    name="fdr-level"
-                                    id="fdr-level"
-                                    min="0.001"
-                                    max="0.2"
-                                    step="0.001"
+                                <input type="number" name="fdr-level" id="fdr-level" min="0.001" max="0.2" step="0.001"
                                     class="mt-1 w-full rounded-md border border-gray-300 p-2 text-xs disabled:bg-gray-200 disabled:text-gray-600"
-                                    placeholder="e.g., 0.1"
-                                />
+                                    placeholder="e.g., 0.1" />
                             </div>
 
                             <div class="border-l border-gray-300"></div>
                             <div>
                                 <div class="flex items-center">
-									<input
-										type="radio"
-										id="p-value-threshold-radio"
-										name="threshold_type"
-										value="p_value_threshold"
-										class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-									/>
-                                    <label for="p-value-threshold-radio" class="ml-2 text-sm text-gray-700">P-Value Threshold</label>
+                                    <input type="radio" id="p-value-threshold-radio" name="threshold_type"
+                                        value="p_value_threshold"
+                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300" />
+                                    <label for="p-value-threshold-radio" class="ml-2 text-sm text-gray-700">P-Value
+                                        Threshold</label>
                                 </div>
-                                <input
-                                    type="number"
-                                    name="p-val-threshold"
-                                    id="p-val-threshold"
-                                    max="1.0"
+                                <input type="number" name="p-val-threshold" id="p-val-threshold" max="1.0"
                                     class="mt-1 w-full rounded-md border border-gray-300 p-2 text-xs disabled:bg-gray-200 disabled:text-gray-600"
-                                    placeholder="e.g., 0.0015"
-                                    disabled
-                                />
+                                    placeholder="e.g., 0.0015" disabled />
                             </div>
                         </div>
                         <button type="button" id="apply-correction" class="btn-primary mt-2 w-full">
@@ -304,69 +246,42 @@ block content %}
 
                     <div class="mt-2 rounded-md border border-gray-200 bg-gray-50 px-3 pt-3">
                         <div class="mb-2">
-                            <label for="point-size" class="block text-sm font-medium text-gray-700 mb-1"
-                                >Point Size:</label
-                            >
-                            <input
-                                type="range"
-                                id="point-size"
-                                name="point_size"
-                                min="1"
-                                max="20"
-                                step="0.5"
-                                value="6"
-                                class="w-full h-2 bg-gray-400 rounded-sm appearance-none cursor-pointer"
-                            />
+                            <label for="point-size" class="block text-sm font-medium text-gray-700 mb-1">Point
+                                Size:</label>
+                            <input type="range" id="point-size" name="point_size" min="1" max="20" step="0.5" value="6"
+                                class="w-full h-2 bg-gray-400 rounded-sm appearance-none cursor-pointer" />
                             <span id="point-size-value" class="text-xs text-gray-500">6</span>
                         </div>
 
                         <div class="mb-2">
-                            <label for="opacity" class="block text-sm font-medium text-gray-700 mb-1"
-                                >Opacity:</label
-                            >
-                            <input
-                                type="range"
-                                id="opacity"
-                                name="opacity"
-                                min="0.1"
-                                max="1"
-                                value="0.5"
-                                step="0.1"
-                                class="w-full h-2 bg-gray-400 rounded-sm appearance-none cursor-pointer"
-                            />
+                            <label for="opacity" class="block text-sm font-medium text-gray-700 mb-1">Opacity:</label>
+                            <input type="range" id="opacity" name="opacity" min="0.1" max="1" value="0.5" step="0.1"
+                                class="w-full h-2 bg-gray-400 rounded-sm appearance-none cursor-pointer" />
                             <span id="opacity-value" class="text-xs text-gray-500">0.5</span>
                         </div>
 
                         <div class="mb-2">
                             <div class="flex items-center">
-                                <input
-                                    id="show-legend"
-                                    name="show_legend"
-                                    type="checkbox"
-                                    checked
-                                    class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                                />
+                                <input id="show-legend" name="show_legend" type="checkbox" checked
+                                    class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" />
                                 <label for="show-legend" class="ml-2 block text-sm text-gray-900">Show Legend</label>
                             </div>
                         </div>
                     </div>
                 </div>
 
-				<!-- End of wrapper for form elements -->
-				<button
-					type="submit"
-					class="btn-primary mt-auto w-full"
-				>
-					Update Plot
-				</button>
-			</form>
-		</div>
-	</div>
+                <!-- End of wrapper for form elements -->
+                <button type="submit" class="btn-primary mt-auto w-full">
+                    Update Plot
+                </button>
+            </form>
+        </div>
+    </div>
 
-	<script>
-		window.analysis = {{ analysis | tojson }};
-	</script>
-	<script src="{{ url_for('static', filename='js/view_analysis.js') }}"></script>
+    <script>
+        window.analysis = {{ analysis | tojson }};
+    </script>
+    <script src="{{ url_for('static', filename='js/view_analysis.js') }}"></script>
 </div>
 
 {% endblock %}

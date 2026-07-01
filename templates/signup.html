@@ -8,26 +8,22 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
         <div class="mb-4">
             <label for="username" class="form-label">Username:</label>
-            <input type="text" id="username" name="username" required
-                class="form-control">
+            <input type="text" id="username" name="username" required class="form-control">
         </div>
         <div class="mb-4">
             <label for="password" class="form-label">Password:</label>
-            <input type="password" id="password" name="password" required
-                class="form-control">
+            <input type="password" id="password" name="password" required class="form-control">
         </div>
         <div class="mb-6">
             <label for="confirm_password" class="form-label">Confirm
                 Password:</label>
-            <input type="password" id="confirm_password" name="confirm_password" required
-                class="form-control">
+            <input type="password" id="confirm_password" name="confirm_password" required class="form-control">
         </div>
         <div class="flex items-center justify-between">
-            <input type="submit" value="Sign Up"
-                class="btn-primary cursor-pointer">
+            <input type="submit" value="Sign Up" class="btn-primary cursor-pointer">
             <a href="{{ url_for('auth.login') }}"
                 class="inline-block align-baseline text-sm font-semibold text-blue-700 hover:text-blue-900 hover:underline">
-                Already have an account? Login
+                Login
             </a>
         </div>
     </form>

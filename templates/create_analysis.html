@@ -1,35 +1,36 @@
 {% extends "base.html" %} {% block title %}Create New Analysis{% endblock %} {% block content %}
-<div class="app-card mx-auto max-w-5xl p-5 sm:p-8">
-    <h1 class="mb-5 text-xl font-semibold text-gray-900">Create New Analysis</h1>
-    <form method="POST" action="{{ url_for('main_routes.create_analysis') }}">
+<div class="app-card w-full p-4 sm:p-5">
+    <h1 class="section-title mb-4 border-b border-gray-200 pb-3">Create New Analysis</h1>
+    <form method="POST" action="{{ url_for('main_routes.create_analysis') }}" class="space-y-4">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}" />
 
         <!-- Analysis Name Section -->
-        <div class="mb-4">
+        <div>
             <label for="analysis_name" class="form-label">Analysis Name</label>
-            <input type="text" id="analysis_name" name="analysis_name" required
-                class="form-control" />
+            <input type="text" id="analysis_name" name="analysis_name" required class="form-control" />
         </div>
 
         <!-- Analysis Method Section -->
-        <div class="app-section mb-4">
-            <h3 class="section-title mb-4">Analysis Method</h3>
+        <div class="app-section p-4">
+            <h3 class="section-title mb-3">Analysis Method</h3>
             <div class="flex items-start rounded-md border border-blue-200 bg-blue-50 p-3">
                 <input type="hidden" name="analysis_method" value="z_aggregate">
                 <div class="text-sm">
                     <p class="font-medium text-gray-900">
                         Z-Aggregate
-                        <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        <span
+                            class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                             Default
                         </span>
                     </p>
-                    <p class="text-gray-500 mt-1">Computes TF activity from standardized target-gene expression using uniform prior-edge weights.</p>
+                    <p class="text-gray-500 mt-1">Computes TF activity from standardized target-gene expression using
+                        uniform prior-edge weights.</p>
                 </div>
             </div>
         </div>
 
         <!-- Gene Expression Section -->
-        <div class="app-section mb-4">
+        <div class="app-section p-4">
             <p class="section-title mb-3">Gene Expression Data</p>
             <div class="mb-3 flex items-center">
                 <input type="checkbox" id="have_h5ad" name="have_h5ad"
@@ -43,21 +44,20 @@
             <div id="h5ad_selection_section" class="space-y-2" style="display: none">
                 <label for="selected_h5ad_file" class="form-label">Select .h5ad File:</label>
                 {% if user_files %}
-                    <select id="selected_h5ad_file" name="selected_h5ad_file"
-                        class="form-control">
-                        <option value="select-h5ad-file">-- Select a .h5ad file --</option>
-                        {% for file_info in user_files %}
-                            {% if file_info.filename.endswith('.h5ad') %}
-                            <option value="{{ file_info.filename }}">
-                                {{ file_info.original_filename | default(file_info.filename, true) }}
-                            </option>
-                            {% endif %}
-                        {% endfor %}
-                    </select>
+                <select id="selected_h5ad_file" name="selected_h5ad_file" class="form-control">
+                    <option value="select-h5ad-file">-- Select a .h5ad file --</option>
+                    {% for file_info in user_files %}
+                    {% if file_info.filename.endswith('.h5ad') %}
+                    <option value="{{ file_info.filename }}">
+                        {{ file_info.original_filename | default(file_info.filename, true) }}
+                    </option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
                 {% else %}
-                    <p class="text-sm text-gray-600">
-                        No .h5ad files found. Upload one or provide separate count/metadata files.
-                    </p>
+                <p class="text-sm text-gray-600">
+                    No .h5ad files found. Upload one or provide separate count/metadata files.
+                </p>
                 {% endif %}
             </div>
 
@@ -65,23 +65,21 @@
                 <p class="text-sm text-gray-500 mb-2">If you don't have a .h5ad file, you can also select:</p>
                 <div>
                     <label for="gene_exp_file" class="form-label">Select Gene Expression File:</label>
-                    <select id="gene_exp_file" name="gene_exp_file"
-                        class="form-control">
+                    <select id="gene_exp_file" name="gene_exp_file" class="form-control">
                         <option value="select-gene-exp-file">-- Select a gene expression file --</option>
                         {% for file_info in user_files %}
-                            {% if file_info.file_type == 'Gene Expression' %}
-                            <option value="{{ file_info.filename }}">
-                                {{ file_info.original_filename | default(file_info.filename, true) }}
-                            </option>
-                            {% endif %}
+                        {% if file_info.file_type == 'Gene Expression' %}
+                        <option value="{{ file_info.filename }}">
+                            {{ file_info.original_filename | default(file_info.filename, true) }}
+                        </option>
+                        {% endif %}
                         {% endfor %}
                     </select>
                 </div>
 
                 <div>
                     <label for="species" class="form-label">Select Species:</label>
-                    <select id="species" name="species"
-                        class="form-control">
+                    <select id="species" name="species" class="form-control">
                         <option value="select-species">-- Select a species --</option>
                         <option value="human">Human</option>
                         <option value="mouse">Mouse</option>
@@ -90,15 +88,14 @@
 
                 <div>
                     <label for="metadata_file" class="form-label">Select Metadata File (Optional):</label>
-                    <select id="metadata_file" name="metadata_file"
-                        class="form-control">
+                    <select id="metadata_file" name="metadata_file" class="form-control">
                         <option value="select-metadata-file">-- Select a metadata file --</option>
                         {% for file_info in user_files %}
-                            {% if file_info.file_type == 'Metadata' %}
-                            <option value="{{ file_info.filename }}">
-                                {{ file_info.original_filename | default(file_info.filename, true) }}
-                            </option>
-                            {% endif %}
+                        {% if file_info.file_type == 'Metadata' %}
+                        <option value="{{ file_info.filename }}">
+                            {{ file_info.original_filename | default(file_info.filename, true) }}
+                        </option>
+                        {% endif %}
                         {% endfor %}
                     </select>
                 </div>
@@ -107,24 +104,24 @@
         </div>
 
         <!-- QC Plots Section -->
-        <div id="qc-plots-container" class="qc-fade-slide app-section mt-4 mb-4 hidden bg-gray-50">
+        <div id="qc-plots-container" class="qc-fade-slide app-section hidden bg-gray-50 p-4">
             <h3 class="section-title mb-3">Quality Control Plots for Selected File</h3>
             <div class="grid md:grid-cols-1 gap-4">
                 <div>
                     <div id="qc-plot-gene-expression" class="h-64"></div>
                     <div id="qc-plot-gene-expression-stats"></div>
                 </div>
-                <hr/>
+                <hr />
                 <div>
                     <div id="qc-plot-genes-per-cell" class="h-64"></div>
                     <div id="qc-plot-genes-per-cell-stats"></div>
                 </div>
-                <hr/>
+                <hr />
                 <div>
                     <div id="qc-plot-cells-per-gene" class="h-64"></div>
                     <div id="qc-plot-cells-per-gene-stats"></div>
                 </div>
-                <hr/>
+                <hr />
                 <div>
                     <div id="qc-plot-mt-percent" class="h-64"></div>
                     <div id="qc-plot-mt-percent-stats"></div>
@@ -134,26 +131,26 @@
 
 
         <!-- Prior Data Section -->
-        <div class="app-section mb-4">
+        <div class="app-section p-4">
             <p class="section-title mb-3">Prior Data:</p>
-            <p class="muted-help mb-4">Select one of the built-in prior databases, or choose a custom uploaded prior file.</p>
+            <p class="muted-help mb-4">Select one of the built-in prior databases, or choose a custom uploaded prior
+                file.</p>
 
             <div>
                 <label for="prior_data_file" class="form-label">Select Prior Data File:</label>
-                <select id="prior_data_file" name="prior_data_file"
-                    class="form-control">
+                <select id="prior_data_file" name="prior_data_file" class="form-control">
                     {% for filename, label in built_in_prior_files.items() %}
-                        <option value="{{ filename }}">{{ label }}</option>
+                    <option value="{{ filename }}">{{ label }}</option>
                     {% endfor %}
                     {% if user_files | selectattr('file_type', 'equalto', 'Prior Data') | list %}
-                        <option disabled>----------</option>
+                    <option disabled>----------</option>
                     {% endif %}
                     {% for file_info in user_files %}
-                        {% if file_info.file_type == 'Prior Data' %}
-                            <option value="{{ file_info.filename }}">
-                                {{ file_info.original_filename | default(file_info.filename, true) }}
-                            </option>
-                        {% endif %}
+                    {% if file_info.file_type == 'Prior Data' %}
+                    <option value="{{ file_info.filename }}">
+                        {{ file_info.original_filename | default(file_info.filename, true) }}
+                    </option>
+                    {% endif %}
                     {% endfor %}
                 </select>
             </div>
@@ -163,61 +160,63 @@
                 <input type="number" name="min_number_of_targets" id="min_number_of_targets" value="3" min="1"
                     class="form-control" />
                 <p class="muted-help mt-1">
-                    Only consider TFs that regulate at least this many target genes present in your expression data. Helps remove unreliable TFs.
+                    Only consider TFs that regulate at least this many target genes present in your expression data.
+                    Helps remove unreliable TFs.
                 </p>
             </div>
         </div>
 
 
         <!-- Data Filtering Section -->
-        <div class="app-section mb-4">
+        <div class="app-section p-4">
             <p class="section-title mb-3">Data Filtering:</p>
-            <p class="muted-help mb-4">Check a box to apply the corresponding filter. The plots above can help you choose appropriate values. (Select a file to see plots)</p>
+            <p class="muted-help mb-4">Check a box to apply the corresponding filter. The plots above can help you
+                choose appropriate values. (Select a file to see plots)</p>
 
             <!-- Keep Cells by Gene Count -->
-            <div class="mb-3 flex items-center space-x-3">
+            <div class="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
                 <input type="checkbox" id="filter-cells" name="filter_cells" value="on" checked
-                       class="mr-2 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0" />
+                    class="h-4 w-4 flex-shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                 <label for="filter-cells" class="text-sm text-gray-700">Keep cells with at least</label>
                 <input type="number" id="min-genes" name="min_genes" value="100" min="0"
-                       class="w-24 rounded-md border border-gray-300 p-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                    class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                 <span class="text-sm text-gray-700">genes</span>
             </div>
 
             <!-- Keep Genes by Cell Count -->
-            <div class="mb-3 flex items-center space-x-3">
+            <div class="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
                 <input type="checkbox" id="filter-genes" name="filter_genes" value="on" checked
-                       class="mr-2 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0" />
+                    class="h-4 w-4 flex-shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                 <label for="filter-genes" class="text-sm text-gray-700">Keep genes found in at least</label>
                 <input type="number" id="min-cells" name="min_cells" value="10" min="0"
-                       class="w-24 rounded-md border border-gray-300 p-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                    class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                 <span class="text-sm text-gray-700">cells</span>
             </div>
 
             <!-- Keep Cells by MT Percentage -->
-            <div class="mb-3 flex items-center space-x-3">
+            <div class="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
                 <input type="checkbox" id="qc-filter" name="qc_filter" value="on" checked
-                       class="mr-2 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0" />
+                    class="h-4 w-4 flex-shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                 <label for="qc-filter" class="text-sm text-gray-700">Keep cells with Mitochondrial % less than</label>
                 <input type="number" id="max-mt-pct" name="max_mt_pct" value="100" min="0"
-                       class="w-16 rounded-md border border-gray-300 p-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                    class="w-20 rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                 <span class="text-sm text-gray-700">%</span>
             </div>
 
             <!-- Normalization -->
-            <div class="mb-3 flex items-center space-x-3">
+            <div class="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
                 <input type="checkbox" id="data-normalize" name="data_normalize" value="on" checked
-                       class="mr-2 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
+                    class="h-4 w-4 flex-shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                 <label for="data-normalize" class="text-sm text-gray-700">Normalize total expression to</label>
                 <input type="number" id="data-normalize-value" name="data_normalize_value" value="10000" min="0"
-                       class="w-24 rounded-md border border-gray-300 p-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                    class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                 <span class="text-sm text-gray-700">per cell</span>
             </div>
 
             <!-- Log Transform -->
-            <div class="mb-3 flex items-center">
+            <div class="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
                 <input type="checkbox" id="log-transform" name="log_transform" value="on" checked
-                       class="mr-5 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
+                    class="h-4 w-4 flex-shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                 <label for="log-transform" class="text-sm text-gray-700">Apply <span
                         class="font-mono font-semibold bg-gray-200 rounded-md p-1">log1p</span>
                     transformation</label>
@@ -225,7 +224,7 @@
         </div>
 
         <!-- 2D Layout Section -->
-        <div class="app-section mb-4">
+        <div class="app-section p-4">
             <p class="section-title mb-3">2D Layout</p>
             <div class="mb-3 flex items-center">
                 <input type="checkbox" id="have_2d_layout" name="have_2d_layout"
@@ -237,15 +236,14 @@
 
             <div id="2d_layout_selection_section" class="space-y-2" style="display: none">
                 <label class="form-label">Select 2D Layout File:</label>
-                <select id="layout_file_2d" name="layout_file_2d"
-                    class="form-control">
+                <select id="layout_file_2d" name="layout_file_2d" class="form-control">
                     <option value="">-- Select a layout file --</option>
                     {% for file_info in user_files %}
-                        {% if file_info.file_type == '2D Layout' %}
-                            <option value="{{ file_info.filename }}">
-                                {{ file_info.original_filename | default(file_info.filename, true) }}
-                            </option>
-                        {% endif %}
+                    {% if file_info.file_type == '2D Layout' %}
+                    <option value="{{ file_info.filename }}">
+                        {{ file_info.original_filename | default(file_info.filename, true) }}
+                    </option>
+                    {% endif %}
                     {% endfor %}
                 </select>
             </div>
@@ -266,8 +264,7 @@
                 <div class="mb-3">
                     <label for="n_neighbors" class="form-label">Number of
                         Neighbors (n_neighbors):</label>
-                    <input type="number" name="n_neighbors" id="n_neighbors" value="15" min="2"
-                        class="form-control" />
+                    <input type="number" name="n_neighbors" id="n_neighbors" value="15" min="2" class="form-control" />
                 </div>
 
                 <div class="mb-3">
@@ -280,8 +277,7 @@
                 <div class="">
                     <label for="metric" class="form-label">Distance
                         Metric:</label>
-                    <select name="metric" id="metric"
-                        class="form-control">
+                    <select name="metric" id="metric" class="form-control">
                         <option value="cosine">cosine</option>
                         <option value="euclidean" selected>euclidean</option>
                     </select>
@@ -291,33 +287,34 @@
                     <div class="flex items-center space-x-1">
                         <label for="random-state" class="form-label">Random State (Optional):</label>
                         <button type="button"
-                                class="text-blue-500 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300 rounded-full info-btn"
-                                data-tooltip-id="random-state-tooltip"
-                                tabindex="0"
-                                aria-label="Info">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="white"></circle>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 16v-4m0-4h.01"></path>
+                            class="text-blue-500 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300 rounded-full info-btn"
+                            data-tooltip-id="random-state-tooltip" tabindex="0" aria-label="Info">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="white">
+                                </circle>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 16v-4m0-4h.01"></path>
                             </svg>
                         </button>
                     </div>
                     <input type="number" id="random-state" name="random_state" min="0" max="2147483647"
-                           class="form-control" placeholder="e.g. 42" />
-                    <div id="random-state-tooltip" class="hidden absolute z-10 bg-white border border-gray-300 rounded p-2 text-xs text-gray-700 shadow-md w-64">
-                        <strong>Random State:</strong> This parameter sets the random seed for reproducibility. Enter an integer value to ensure the same UMAP result each time. Leave blank for random behavior.
+                        class="form-control" placeholder="e.g. 42" />
+                    <div id="random-state-tooltip"
+                        class="hidden absolute z-10 bg-white border border-gray-300 rounded p-2 text-xs text-gray-700 shadow-md w-64">
+                        <strong>Random State:</strong> This parameter sets the random seed for reproducibility. Enter an
+                        integer value to ensure the same UMAP result each time. Leave blank for random behavior.
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Submit Button -->
-        <div class="mt-6 flex items-center justify-start border-t border-gray-200 pt-5">
-            <input type="submit" value="Start Analysis"
-                class="btn-primary cursor-pointer"
-                {% if not user_files %}disabled title="Upload files before creating an analysis" {% endif %} />
+        <div class="flex items-center justify-start border-t border-gray-200 pt-5">
+            <input type="submit" value="Start Analysis" class="btn-primary cursor-pointer" {% if not user_files
+                %}disabled title="Upload files before creating an analysis" {% endif %} />
 
-            <a href="{{ url_for('main_routes.index') }}"
-            class="btn-secondary ml-3">Cancel</a>
+            <a href="{{ url_for('main_routes.index') }}" class="btn-secondary ml-3">Cancel</a>
         </div>
 
     </form>
