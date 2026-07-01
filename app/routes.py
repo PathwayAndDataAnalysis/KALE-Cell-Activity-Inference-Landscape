@@ -13,7 +13,9 @@ from flask import (
     url_for,
     flash,
     current_app,
-    jsonify, send_from_directory, Response,
+    jsonify,
+    send_from_directory,
+    Response,
 )
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -28,12 +30,24 @@ from . import (
     get_file_path,
 )
 from .benjamini_hotchberg import bh_fdr_correction
-from .run_z_aggregate import run_z_aggregate_analysis
+from .run_z_aggregate import WeightType, run_z_aggregate_analysis
 from .umap_pipeline import run_umap_pipeline
-from .utils import run_in_background, update_analysis_status, calculate_and_save_qc_metrics, \
-    get_user_specific_data_path, generate_scatter_plot_response, get_layout_and_metadata_dfs, generate_colored_traces, \
-    get_layout_and_gene_exp_levels_df, estimate_fdr_for_gene, \
-    check_system_resources, allowed_file, get_user_analysis_path, get_plot_axis_columns, read_layout_columns
+from .utils import (
+    run_in_background,
+    update_analysis_status,
+    calculate_and_save_qc_metrics,
+    get_user_specific_data_path,
+    generate_scatter_plot_response,
+    get_layout_and_metadata_dfs,
+    generate_colored_traces,
+    get_layout_and_gene_exp_levels_df,
+    estimate_fdr_for_gene,
+    check_system_resources,
+    allowed_file,
+    get_user_analysis_path,
+    get_plot_axis_columns,
+    read_layout_columns,
+)
 
 # Create Blueprints
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
@@ -45,7 +59,7 @@ BUILT_IN_PRIOR_FILES = {
     "ensemble.tsv": "Ensemble",
     "dorothea.tsv": "DoRothEA",
 }
-
+WEIGHT_TYPE_OPTIONS = [weight_type.value for weight_type in WeightType]
 
 
 # --- Jinja Filter for Datetime Formatting ---
@@ -62,6 +76,7 @@ def format_datetime(value, format="%Y-%m-%d %H:%M"):
     if isinstance(value, datetime):
         return value.strftime(format)
     return value
+
 
 # This filter will format bytes into KB, MB, GB, etc.
 @main_bp.app_template_filter()
@@ -94,50 +109,61 @@ def index():
     user_analyses = current_user_node.get("analyses", [])
 
     # Create a mapping from secured filename to original filename for easy lookup
-    filename_map = {f['filename']: f.get('original_filename', f['filename']) for f in user_files}
+    filename_map = {
+        f["filename"]: f.get("original_filename", f["filename"]) for f in user_files
+    }
 
     for analysis in user_analyses:
-        inputs = analysis.get('inputs', {})
+        inputs = analysis.get("inputs", {})
         display_inputs = {}
 
         # Enrich Gene Expression input
-        ge_input = inputs.get('gene_expression', {})
-        if ge_input.get('h5ad_filepath'):
+        ge_input = inputs.get("gene_expression", {})
+        if ge_input.get("h5ad_filepath"):
             # The h5ad_filepath is already the secured name
-            secured_name = ge_input['h5ad_filepath'].split("/")[-1]
-            display_inputs['gene_expression'] = filename_map.get(secured_name, secured_name)
-        elif ge_input.get('gene_exp_filepath'):
-            secured_name = ge_input['gene_exp_filepath'].split("/")[-1]
-            display_inputs['gene_expression'] = filename_map.get(secured_name, secured_name)
-            if ge_input.get('metadata_filepath'):
-                meta_name = ge_input['metadata_filepath'].split("/")[-1]
-                display_inputs['metadata'] = filename_map.get(meta_name, meta_name)
+            secured_name = ge_input["h5ad_filepath"].split("/")[-1]
+            display_inputs["gene_expression"] = filename_map.get(
+                secured_name, secured_name
+            )
+        elif ge_input.get("gene_exp_filepath"):
+            secured_name = ge_input["gene_exp_filepath"].split("/")[-1]
+            display_inputs["gene_expression"] = filename_map.get(
+                secured_name, secured_name
+            )
+            if ge_input.get("metadata_filepath"):
+                meta_name = ge_input["metadata_filepath"].split("/")[-1]
+                display_inputs["metadata"] = filename_map.get(meta_name, meta_name)
 
         # Enrich Prior Data input
-        prior_input = inputs.get('prior_data', {})
-        if prior_input.get('prior_data_name'):
-            display_inputs['prior_data'] = prior_input['prior_data_name']
-        elif prior_input.get('prior_data_filepath'):
-            prior_name = prior_input['prior_data_filepath'].split("/")[-1]
-            display_inputs['prior_data'] = BUILT_IN_PRIOR_FILES.get(
+        prior_input = inputs.get("prior_data", {})
+        if prior_input.get("prior_data_name"):
+            display_inputs["prior_data"] = prior_input["prior_data_name"]
+        elif prior_input.get("prior_data_filepath"):
+            prior_name = prior_input["prior_data_filepath"].split("/")[-1]
+            display_inputs["prior_data"] = BUILT_IN_PRIOR_FILES.get(
                 prior_name,
                 filename_map.get(prior_name, prior_name),
             )
         else:
-            display_inputs['prior_data'] = "N/A"
+            display_inputs["prior_data"] = "N/A"
+        display_inputs["weight_type"] = prior_input.get(
+            "weight_type", WeightType.UNIFORM.value
+        )
 
         # Enrich Layout input
-        layout_input = inputs.get('layout', {})
-        if layout_input.get('source') == 'FILE' and layout_input.get('layout_filepath'):
-            layout_name = layout_input['layout_filepath'].split("/")[-1]
-            display_inputs['layout'] = filename_map.get(layout_name, layout_name)
-        elif layout_input.get('source') == 'UMAP_GENERATED':
-            display_inputs['layout'] = "Generated from data"
+        layout_input = inputs.get("layout", {})
+        if layout_input.get("source") == "FILE" and layout_input.get("layout_filepath"):
+            layout_name = layout_input["layout_filepath"].split("/")[-1]
+            display_inputs["layout"] = filename_map.get(layout_name, layout_name)
+        elif layout_input.get("source") == "UMAP_GENERATED":
+            display_inputs["layout"] = "Generated from data"
 
         # Add the enriched data to the analysis dictionary
-        analysis['display_inputs'] = display_inputs
+        analysis["display_inputs"] = display_inputs
 
-    user_analyses_sorted = sorted(user_analyses, key=lambda x: x.get("created_at", ""), reverse=True)
+    user_analyses_sorted = sorted(
+        user_analyses, key=lambda x: x.get("created_at", ""), reverse=True
+    )
 
     return render_template(
         "index.html",
@@ -153,22 +179,22 @@ def download_data(filename):
     all_users_data = get_all_users_data()
     user_files = all_users_data.get(current_user.id, {}).get("files", [])
 
-    if not any(f['filename'] == filename for f in user_files):
+    if not any(f["filename"] == filename for f in user_files):
         flash("File not found or access denied.", "error")
-        return redirect(url_for('main_routes.index'))
+        return redirect(url_for("main_routes.index"))
 
     # Get the user's upload directory path
     user_dir = get_user_specific_data_path(current_user.id)
     if not user_dir:
         flash("Could not locate user directory.", "error")
-        return redirect(url_for('main_routes.index'))
+        return redirect(url_for("main_routes.index"))
 
     try:
         # Use Flask's secure send_from_directory
         return send_from_directory(user_dir, filename, as_attachment=True)
     except FileNotFoundError:
         flash("File not found on disk.", "error")
-        return redirect(url_for('main_routes.index'))
+        return redirect(url_for("main_routes.index"))
 
 
 @main_bp.route("/upload_data", methods=["POST"])
@@ -178,7 +204,10 @@ def upload_data():
         # Uploads are streamed to disk, so the preflight check should not reject
         # them only because the machine is under normal memory pressure.
         if not check_system_resources(require_memory=False):
-            flash("System disk space is insufficient for file upload. Please try again later.", "error")
+            flash(
+                "System disk space is insufficient for file upload. Please try again later.",
+                "error",
+            )
             return redirect(url_for("main_routes.index"))
 
         if "data_file" not in request.files:
@@ -200,9 +229,11 @@ def upload_data():
             # --- Decide if QC should be run ---
             should_run_qc = False
             filename_lower = filename.lower()
-            if filename_lower.endswith('.h5ad'):
+            if filename_lower.endswith(".h5ad"):
                 should_run_qc = True
-            elif (filename_lower.endswith('.csv') or filename_lower.endswith('.tsv')) and file_type == "Gene Expression":
+            elif (
+                filename_lower.endswith(".csv") or filename_lower.endswith(".tsv")
+            ) and file_type == "Gene Expression":
                 should_run_qc = True
 
             user_data_storage_path = get_user_specific_data_path(current_user.id)
@@ -215,7 +246,10 @@ def upload_data():
             # if a file already exists
             all_users_data = get_all_users_data()
             if current_user.id not in all_users_data:
-                all_users_data[current_user.id] = {"password": "HASH_PLACEHOLDER", "files": []}
+                all_users_data[current_user.id] = {
+                    "password": "HASH_PLACEHOLDER",
+                    "files": [],
+                }
 
             user_files_list = all_users_data[current_user.id].get("files", [])
 
@@ -231,7 +265,7 @@ def upload_data():
                 file_size = file.tell()
                 file.seek(0)  # Rewind to the beginning so save() works correctly
 
-                with open(destination_file_path, 'wb') as f:
+                with open(destination_file_path, "wb") as f:
                     chunk_size = 8192
                     while True:
                         chunk = file.read(chunk_size)
@@ -245,26 +279,33 @@ def upload_data():
                     file_type = "h5ad File"
 
                 # Store file info
-                user_files_list.append({
-                    "filename": filename,  # The secured filename
-                    "original_filename": original_filename,  # Keep original for display if needed
-                    "description": description,
-                    "path": destination_file_path,  # Store the full path for easier deletion
-                    "file_type": file_type,
-                    "file_size": file_size,
-                    "upload_date": datetime.now().isoformat(),
-                    **({"qc_status": "processing"} if should_run_qc else {})
-                })
+                user_files_list.append(
+                    {
+                        "filename": filename,  # The secured filename
+                        "original_filename": original_filename,  # Keep original for display if needed
+                        "description": description,
+                        "path": destination_file_path,  # Store the full path for easier deletion
+                        "file_type": file_type,
+                        "file_size": file_size,
+                        "upload_date": datetime.now().isoformat(),
+                        **({"qc_status": "processing"} if should_run_qc else {}),
+                    }
+                )
 
                 all_users_data[current_user.id]["files"] = user_files_list
                 save_all_users_data(all_users_data)
 
                 if should_run_qc:
                     # --- TRIGGER BACKGROUND QC CALCULATION ---
-                    run_in_background(calculate_and_save_qc_metrics, current_user.id, filename, destination_file_path)
+                    run_in_background(
+                        calculate_and_save_qc_metrics,
+                        current_user.id,
+                        filename,
+                        destination_file_path,
+                    )
                     flash(
                         f'File "{original_filename}" uploaded successfully! QC analysis is running in the background.',
-                        "success"
+                        "success",
                     )
                 else:
                     flash(
@@ -272,7 +313,9 @@ def upload_data():
                         "success",
                     )
             except Exception as e:
-                current_app.logger.error(f"Error saving file {filename} for user {current_user.id}: {e}")
+                current_app.logger.error(
+                    f"Error saving file {filename} for user {current_user.id}: {e}"
+                )
                 # Cleanup partial file
                 if os.path.exists(destination_file_path):
                     try:
@@ -281,7 +324,10 @@ def upload_data():
                         pass
                 flash(f"An error occurred during file upload: {str(e)}", "error")
         else:
-            flash(f"File type not allowed. Allowed: {', '.join(current_app.config['ALLOWED_EXTENSIONS'])}", "error")
+            flash(
+                f"File type not allowed. Allowed: {', '.join(current_app.config['ALLOWED_EXTENSIONS'])}",
+                "error",
+            )
 
     except RequestEntityTooLarge:
         flash("File too large for upload.", "error")
@@ -373,6 +419,7 @@ def create_analysis_page():
         "create_analysis.html",
         user_files=user_files,
         built_in_prior_files=BUILT_IN_PRIOR_FILES,
+        weight_type_options=WEIGHT_TYPE_OPTIONS,
     )
 
 
@@ -383,7 +430,10 @@ def create_analysis():
         # Do not block analysis creation on a coarse memory snapshot. The
         # background pipeline logs current memory and handles real failures.
         if not check_system_resources(require_memory=False):
-            flash("System disk space is insufficient for analysis. Please try again later.", "error")
+            flash(
+                "System disk space is insufficient for analysis. Please try again later.",
+                "error",
+            )
             return redirect(url_for("main_routes.create_analysis_page"))
 
         current_app.logger.info(f"Create analysis form data: {request.form}")
@@ -403,17 +453,31 @@ def create_analysis():
         all_users_data = get_all_users_data()
         user_analyses = all_users_data.get(current_user.id, {}).get("analyses", [])
         if any(a.get("name") == analysis_name for a in user_analyses):
-            flash(f'Analysis "{analysis_name}" already exists. Please choose a different name.', "error")
+            flash(
+                f'Analysis "{analysis_name}" already exists. Please choose a different name.',
+                "error",
+            )
             return redirect(url_for("main_routes.create_analysis_page"))
 
         # Gene Expression Data
         have_h5ad = request.form.get("have_h5ad") == "on"
         selected_h5ad_file = request.form.get("selected_h5ad_file", "")
         gene_exp_file = request.form.get("gene_exp_file", "")
-        species = request.form.get("species") if request.form.get("species") and request.form.get("species") != "select-species" else "auto"
+        species = (
+            request.form.get("species")
+            if request.form.get("species")
+            and request.form.get("species") != "select-species"
+            else "auto"
+        )
         metadata_file = request.form.get("metadata_file", "")
         ignore_zeros = request.form.get("ignore_zeros") == "on"
         prior_data_file = request.form.get("prior_data_file", "causalpath.tsv")
+        weight_type = request.form.get("weight_type", WeightType.UNIFORM.value)
+        try:
+            weight_type = WeightType(weight_type).value
+        except ValueError:
+            flash("Please select a valid prior weight type.", "error")
+            return redirect(url_for("main_routes.create_analysis_page"))
 
         # 2D Layout Data
         have_2d_layout = request.form.get("have_2d_layout") == "on"
@@ -432,7 +496,9 @@ def create_analysis():
             data_filtering["max_mt_pct"] = request.form.get("max_mt_pct", type=int)
         if request.form.get("data_normalize") == "on":
             data_filtering["data_normalize"] = True
-            data_filtering["data_normalize_value"] = request.form.get("data_normalize_value", type=int)
+            data_filtering["data_normalize_value"] = request.form.get(
+                "data_normalize_value", type=int
+            )
         if request.form.get("log_transform") == "on":
             data_filtering["log_transform"] = True
 
@@ -440,11 +506,13 @@ def create_analysis():
         umap_parameters = None
         if not have_2d_layout:
             umap_parameters = {
-                "pca_components": request.form.get("pca_components", default=20, type=int),
+                "pca_components": request.form.get(
+                    "pca_components", default=20, type=int
+                ),
                 "n_neighbors": request.form.get("n_neighbors", default=15, type=int),
                 "min_dist": request.form.get("min_dist", default=0.3, type=float),
                 "metric": request.form.get("metric", default="euclidean"),
-                "random_state": request.form.get("random_state", type=int, default=0)
+                "random_state": request.form.get("random_state", type=int, default=0),
             }
 
         # Gene Expression File Validation
@@ -466,7 +534,8 @@ def create_analysis():
                 return redirect(url_for("main_routes.create_analysis_page"))
 
         current_user_node = all_users_data.setdefault(
-            current_user.id, {"password": "HASH_PLACEHOLDER", "files": [], "analyses": []}
+            current_user.id,
+            {"password": "HASH_PLACEHOLDER", "files": [], "analyses": []},
         )
 
         if "analyses" not in current_user_node:
@@ -508,27 +577,44 @@ def create_analysis():
                         else {}
                     ),
                     **(
-                        {"gene_exp_filepath": get_file_path(gene_exp_file, current_user.id)}
+                        {
+                            "gene_exp_filepath": get_file_path(
+                                gene_exp_file, current_user.id
+                            )
+                        }
                         if not have_h5ad and gene_exp_file
                         else {}
                     ),
                     **(
-                        {"metadata_filepath": get_file_path(metadata_file, current_user.id)}
-                        if not have_h5ad and metadata_file and metadata_file != "select-metadata-file"
+                        {
+                            "metadata_filepath": get_file_path(
+                                metadata_file, current_user.id
+                            )
+                        }
+                        if not have_h5ad
+                        and metadata_file
+                        and metadata_file != "select-metadata-file"
                         else {}
                     ),
-                    "ignore_zeros": ignore_zeros
+                    "ignore_zeros": ignore_zeros,
                 },
-                "prior_data" : {
+                "prior_data": {
                     "prior_data_filepath": prior_data_filepath,
                     "prior_data_name": prior_data_name,
-                    "min_number_of_targets": request.form.get("min_number_of_targets", type=int, default=3),
+                    "weight_type": weight_type,
+                    "min_number_of_targets": request.form.get(
+                        "min_number_of_targets", type=int, default=3
+                    ),
                 },
                 "data_filtering": data_filtering,
                 "layout": {
                     "source": "FILE" if have_2d_layout else "UMAP_GENERATED",
                     **(
-                        {"layout_filepath": get_file_path(layout_file_2d, current_user.id)}
+                        {
+                            "layout_filepath": get_file_path(
+                                layout_file_2d, current_user.id
+                            )
+                        }
                         if have_2d_layout and layout_file_2d
                         else {}
                     ),
@@ -537,9 +623,13 @@ def create_analysis():
                         if not have_2d_layout and umap_parameters
                         else {}
                     ),
-                }
+                },
             },
-            **({"metadata_cols": metadata_cols} if not have_h5ad and metadata_file else {}),
+            **(
+                {"metadata_cols": metadata_cols}
+                if not have_h5ad and metadata_file
+                else {}
+            ),
         }
 
         current_user_node["analyses"].append(new_analysis)
@@ -554,10 +644,13 @@ def create_analysis():
             have_2d_layout,
             ignore_zeros,
             update_status_fn=update_analysis_status,
-            run_analysis_fn=run_z_aggregate_analysis
+            run_analysis_fn=run_z_aggregate_analysis,
         )
 
-        flash(f'Analysis "{analysis_name}" created successfully and is pending.', "success")
+        flash(
+            f'Analysis "{analysis_name}" created successfully and is pending.',
+            "success",
+        )
         return redirect(url_for("main_routes.index"))
 
     except Exception as e:
@@ -595,7 +688,9 @@ def get_plot(analysis_id):
     if analysis_to_view.get("status") != "Completed":
         return jsonify({"error": "Analysis is not yet complete."}), 400
 
-    return generate_scatter_plot_response(analysis_to_view, plot_type=request.json.get("plot_type"))
+    return generate_scatter_plot_response(
+        analysis_to_view, plot_type=request.json.get("plot_type")
+    )
 
 
 @main_bp.route("/analysis/metadata-cluster/<analysis_id>", methods=["POST"])
@@ -610,7 +705,9 @@ def get_metadata_color_by(analysis_id):
             current_app.logger.error(f"Analysis not found: analysis_id={analysis_id}")
             return jsonify({"error": "Analysis not found."}), 404
         if analysis.get("status") != "Completed":
-            current_app.logger.warning(f"Analysis not completed yet: analysis_id={analysis_id}")
+            current_app.logger.warning(
+                f"Analysis not completed yet: analysis_id={analysis_id}"
+            )
             return jsonify({"error": "Analysis is not completed yet."}), 400
 
         metadata_cluster = request.json.get("selected_metadata_cluster", "").strip()
@@ -622,14 +719,27 @@ def get_metadata_color_by(analysis_id):
 
         metadata_cols = analysis.get("metadata_cols", [])
         if metadata_cluster not in metadata_cols:
-            current_app.logger.warning(f"Requested metadata column '{metadata_cluster}' not found.")
-            return jsonify({"error": f"Metadata column '{metadata_cluster}' not found."}), 400
-
-        plot_df, metadata_df = get_layout_and_metadata_dfs(analysis, current_user.id, plot_type=plot_type)
-        if metadata_cluster not in metadata_df.columns:
-            current_app.logger.warning(f"Metadata column '{metadata_cluster}' not found.")
+            current_app.logger.warning(
+                f"Requested metadata column '{metadata_cluster}' not found."
+            )
             return (
-                jsonify({"error": f"Metadata column '{metadata_cluster}' not found in metadata file."}),
+                jsonify({"error": f"Metadata column '{metadata_cluster}' not found."}),
+                400,
+            )
+
+        plot_df, metadata_df = get_layout_and_metadata_dfs(
+            analysis, current_user.id, plot_type=plot_type
+        )
+        if metadata_cluster not in metadata_df.columns:
+            current_app.logger.warning(
+                f"Metadata column '{metadata_cluster}' not found."
+            )
+            return (
+                jsonify(
+                    {
+                        "error": f"Metadata column '{metadata_cluster}' not found in metadata file."
+                    }
+                ),
                 400,
             )
 
@@ -637,7 +747,9 @@ def get_metadata_color_by(analysis_id):
         if "Cluster" in plot_df.columns:
             plot_df = plot_df.drop(columns=["Cluster"])
         # Merge plot_df with metadata_df on index
-        plot_df = plot_df.merge(metadata_df[[metadata_cluster]], left_index=True, right_index=True)
+        plot_df = plot_df.merge(
+            metadata_df[[metadata_cluster]], left_index=True, right_index=True
+        )
         plot_df = plot_df.rename(columns={metadata_cluster: "Cluster"})
         plot_df["Cluster"] = plot_df["Cluster"].astype(str)
 
@@ -650,10 +762,7 @@ def get_metadata_color_by(analysis_id):
             "xaxis": {"title": x_col},
             "yaxis": {"title": y_col},
         }
-        graph_data = {
-            "data": traces,
-            "layout": layout
-        }
+        graph_data = {"data": traces, "layout": layout}
         return jsonify(graph_data), 200
 
     except Exception:
@@ -676,15 +785,21 @@ def get_gene_expression_color_by(analysis_id):
             current_app.logger.warning(f"Analysis not found: analysis_id={analysis_id}")
             return jsonify({"error": "Analysis not found."}), 404
         if analysis.get("status") != "Completed":
-            current_app.logger.info(f"Analysis not completed yet: analysis_id={analysis_id}")
+            current_app.logger.info(
+                f"Analysis not completed yet: analysis_id={analysis_id}"
+            )
             return jsonify({"error": "Analysis is not completed yet."}), 400
 
         gene_name = request.json.get("selected_gene", "").strip()
         plot_type = request.json.get("plot_type", "").strip()
 
-        current_app.logger.debug(f"Received gene_name='{gene_name}', plot_type='{plot_type}' for analysis_id={analysis_id}")
+        current_app.logger.debug(
+            f"Received gene_name='{gene_name}', plot_type='{plot_type}' for analysis_id={analysis_id}"
+        )
         if not gene_name:
-            current_app.logger.warning(f"No gene expression provided in request for analysis_id={analysis_id}")
+            current_app.logger.warning(
+                f"No gene expression provided in request for analysis_id={analysis_id}"
+            )
             return jsonify({"error": "Gene expression is required."}), 400
 
         plot_columns = get_plot_axis_columns(plot_type)
@@ -693,7 +808,9 @@ def get_gene_expression_color_by(analysis_id):
         x_col, y_col, base_title = plot_columns
         title = f"{base_title} Colored by {gene_name}"
 
-        plot_df = get_layout_and_gene_exp_levels_df(analysis, gene_name, plot_type=plot_type)
+        plot_df = get_layout_and_gene_exp_levels_df(
+            analysis, gene_name, plot_type=plot_type
+        )
         if not isinstance(plot_df, pd.DataFrame):
             return plot_df
 
@@ -743,32 +860,65 @@ def change_fdr_tf(analysis_id):
             current_app.logger.error(f"Analysis not found: analysis_id={analysis_id}")
             return jsonify({"error": "Analysis not found."}), 404
         if analysis.get("status") != "Completed":
-            current_app.logger.warning(f"Analysis not completed yet: analysis_id={analysis_id}")
+            current_app.logger.warning(
+                f"Analysis not completed yet: analysis_id={analysis_id}"
+            )
             return jsonify({"error": "Analysis is not completed yet."}), 400
 
         pvalues_path = analysis.get("pvalues_path")
         layout_filepath = analysis.get("inputs").get("layout").get("layout_filepath")
-        activity_scores_path = analysis.get("activity_scores_path") or analysis.get("activation_path")
+        activity_scores_path = analysis.get("activity_scores_path") or analysis.get(
+            "activation_path"
+        )
 
         if not pvalues_path or not os.path.exists(pvalues_path):
-            current_app.logger.error(f"P-values file '{pvalues_path}' not found for analysis_id '{analysis_id}'.")
-            return jsonify({"error": "P-values file not found. Cannot re-run FDR correction."}), 404
+            current_app.logger.error(
+                f"P-values file '{pvalues_path}' not found for analysis_id '{analysis_id}'."
+            )
+            return (
+                jsonify(
+                    {"error": "P-values file not found. Cannot re-run FDR correction."}
+                ),
+                404,
+            )
         if not layout_filepath or not os.path.exists(layout_filepath):
-            current_app.logger.error(f"Layout file '{layout_filepath}' not found for analysis_id '{analysis_id}'.")
-            return jsonify({"error": "Layout file not found. Cannot re-run FDR correction."}), 404
+            current_app.logger.error(
+                f"Layout file '{layout_filepath}' not found for analysis_id '{analysis_id}'."
+            )
+            return (
+                jsonify(
+                    {"error": "Layout file not found. Cannot re-run FDR correction."}
+                ),
+                404,
+            )
         if not activity_scores_path or not os.path.exists(activity_scores_path):
-            current_app.logger.error(f"Activity scores file '{activity_scores_path}' not found for analysis_id '{analysis_id}'.")
-            return jsonify({"error": "Activity scores file not found. Cannot re-run FDR correction."}), 404
+            current_app.logger.error(
+                f"Activity scores file '{activity_scores_path}' not found for analysis_id '{analysis_id}'."
+            )
+            return (
+                jsonify(
+                    {
+                        "error": "Activity scores file not found. Cannot re-run FDR correction."
+                    }
+                ),
+                404,
+            )
 
         plot_columns = get_plot_axis_columns(plot_type)
         if not plot_columns:
             return jsonify({"error": "Invalid plot type specified."}), 400
         x_col, y_col, _ = plot_columns
         plot_df = read_layout_columns(layout_filepath, [x_col, y_col])
-        pvalues_df_tf = pd.read_parquet(pvalues_path, use_threads=True, columns=[tf_name])
-        activity_scores_tf = pd.read_parquet(activity_scores_path, use_threads=True, columns=[tf_name])
+        pvalues_df_tf = pd.read_parquet(
+            pvalues_path, use_threads=True, columns=[tf_name]
+        )
+        activity_scores_tf = pd.read_parquet(
+            activity_scores_path, use_threads=True, columns=[tf_name]
+        )
 
-        corrected_pvalues, reject, p_value_thresholds = bh_fdr_correction(pvalues_df_tf, fdr_level)
+        corrected_pvalues, reject, p_value_thresholds = bh_fdr_correction(
+            pvalues_df_tf, fdr_level
+        )
 
         final_output = pd.DataFrame(0, index=reject.index, columns=reject.columns)
         final_output[reject] = np.sign(activity_scores_tf[reject])
@@ -781,16 +931,12 @@ def change_fdr_tf(analysis_id):
             plot_type=plot_type,
             tf_activity=tf_name,
         )
-        layout = {
-            "title": title,
-            "xaxis": {"title": x_col},
-            "yaxis": {"title": y_col}
-        }
+        layout = {"title": title, "xaxis": {"title": x_col}, "yaxis": {"title": y_col}}
         graph_data = {
             "data": traces,
             "layout": layout,
             "fdr_level": fdr_level,
-            "p_value_threshold": p_value_thresholds.iloc[0]
+            "p_value_threshold": p_value_thresholds.iloc[0],
         }
         return jsonify(graph_data), 200
 
@@ -818,30 +964,61 @@ def change_pvalue_threshold_tf(analysis_id):
             current_app.logger.error(f"Analysis not found: analysis_id={analysis_id}")
             return jsonify({"error": "Analysis not found."}), 404
         if analysis.get("status") != "Completed":
-            current_app.logger.warning(f"Analysis not completed yet: analysis_id={analysis_id}")
+            current_app.logger.warning(
+                f"Analysis not completed yet: analysis_id={analysis_id}"
+            )
             return jsonify({"error": "Analysis is not completed yet."}), 400
 
         pvalues_path = analysis.get("pvalues_path")
         layout_filepath = analysis.get("inputs").get("layout").get("layout_filepath")
-        activity_scores_path = analysis.get("activity_scores_path") or analysis.get("activation_path")
+        activity_scores_path = analysis.get("activity_scores_path") or analysis.get(
+            "activation_path"
+        )
 
         if not pvalues_path or not os.path.exists(pvalues_path):
-            current_app.logger.error(f"P-values file '{pvalues_path}' not found for analysis_id '{analysis_id}'.")
-            return jsonify({"error": "P-values file not found. Cannot re-run FDR correction."}), 404
+            current_app.logger.error(
+                f"P-values file '{pvalues_path}' not found for analysis_id '{analysis_id}'."
+            )
+            return (
+                jsonify(
+                    {"error": "P-values file not found. Cannot re-run FDR correction."}
+                ),
+                404,
+            )
         if not layout_filepath or not os.path.exists(layout_filepath):
-            current_app.logger.error(f"Layout file '{layout_filepath}' not found for analysis_id '{analysis_id}'.")
-            return jsonify({"error": "Layout file not found. Cannot re-run FDR correction."}), 404
+            current_app.logger.error(
+                f"Layout file '{layout_filepath}' not found for analysis_id '{analysis_id}'."
+            )
+            return (
+                jsonify(
+                    {"error": "Layout file not found. Cannot re-run FDR correction."}
+                ),
+                404,
+            )
         if not activity_scores_path or not os.path.exists(activity_scores_path):
-            current_app.logger.error(f"Activity scores file '{activity_scores_path}' not found for analysis_id '{analysis_id}'.")
-            return jsonify({"error": "Activity scores file not found. Cannot re-run FDR correction."}), 404
+            current_app.logger.error(
+                f"Activity scores file '{activity_scores_path}' not found for analysis_id '{analysis_id}'."
+            )
+            return (
+                jsonify(
+                    {
+                        "error": "Activity scores file not found. Cannot re-run FDR correction."
+                    }
+                ),
+                404,
+            )
 
         plot_columns = get_plot_axis_columns(plot_type)
         if not plot_columns:
             return jsonify({"error": "Invalid plot type specified."}), 400
         x_col, y_col, _ = plot_columns
         plot_df = read_layout_columns(layout_filepath, [x_col, y_col])
-        pvalues_df_tf = pd.read_parquet(pvalues_path, use_threads=True, columns=[tf_name])
-        activity_scores_tf = pd.read_parquet(activity_scores_path, use_threads=True, columns=[tf_name])
+        pvalues_df_tf = pd.read_parquet(
+            pvalues_path, use_threads=True, columns=[tf_name]
+        )
+        activity_scores_tf = pd.read_parquet(
+            activity_scores_path, use_threads=True, columns=[tf_name]
+        )
         fdr = estimate_fdr_for_gene(pvalues_df_tf, tf_name, pvalue_threshold)
 
         pvalues_df_tf = pvalues_df_tf.dropna()
@@ -860,16 +1037,12 @@ def change_pvalue_threshold_tf(analysis_id):
             plot_type=plot_type,
             tf_activity=tf_name,
         )
-        layout = {
-            "title": title,
-            "xaxis": {"title": x_col},
-            "yaxis": {"title": y_col}
-        }
+        layout = {"title": title, "xaxis": {"title": x_col}, "yaxis": {"title": y_col}}
         graph_data = {
             "data": traces,
             "layout": layout,
             "fdr_level": fdr,
-            "p_value_threshold": pvalue_threshold
+            "p_value_threshold": pvalue_threshold,
         }
         return jsonify(graph_data), 200
 
@@ -899,7 +1072,9 @@ def download_analysis(analysis_id):
 
     try:
         pvalues_path = analysis_to_download.get("pvalues_path")
-        activity_scores_path = analysis_to_download.get("activity_scores_path") or analysis_to_download.get("activation_path")
+        activity_scores_path = analysis_to_download.get(
+            "activity_scores_path"
+        ) or analysis_to_download.get("activation_path")
 
         if not pvalues_path or not os.path.exists(pvalues_path):
             flash("P-values file not found for this analysis.", "error")
@@ -912,20 +1087,24 @@ def download_analysis(analysis_id):
 
         # --- Create TSV in an in-memory buffer ---
         tsv_buffer = io.StringIO()
-        combined_df.to_csv(tsv_buffer, index=True, sep='\t')
+        combined_df.to_csv(tsv_buffer, index=True, sep="\t")
         tsv_buffer.seek(0)
 
         # --- Create and send the Flask Response ---
-        safe_analysis_name = "".join(c for c in analysis_to_download['name'] if c.isalnum() or c in (' ', '_')).rstrip()
+        safe_analysis_name = "".join(
+            c for c in analysis_to_download["name"] if c.isalnum() or c in (" ", "_")
+        ).rstrip()
         download_filename = f"TF_Activity_{safe_analysis_name}.tsv"
         return Response(
             tsv_buffer,
             mimetype="text/tab-separated-values",
-            headers={"Content-Disposition": f"attachment;filename={download_filename}"}
+            headers={"Content-Disposition": f"attachment;filename={download_filename}"},
         )
 
     except Exception as e:
-        current_app.logger.error(f"Error downloading result for analysis {analysis_id}: {e}")
+        current_app.logger.error(
+            f"Error downloading result for analysis {analysis_id}: {e}"
+        )
         flash(f"Error downloading result for analysis {analysis_id}: {e}", "error")
         return redirect(url_for("main_routes.index"))
 

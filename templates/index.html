@@ -291,7 +291,7 @@
                         </div>
 
                         <!-- Input Files -->
-                        <div class="mt-3 grid gap-2 text-xs text-gray-600 sm:grid-cols-2 lg:grid-cols-3">
+                        <div class="mt-3 grid gap-2 text-xs text-gray-600 sm:grid-cols-2 lg:grid-cols-4">
                             <div class="min-w-0 rounded-md bg-gray-50 px-3 py-2">
                                 <p class="font-semibold text-gray-500">Gene Expression</p>
                                 <p class="mt-1 truncate text-gray-800"
@@ -312,6 +312,13 @@
                                 <p class="mt-1 truncate text-gray-800"
                                     title="{{ analysis.display_inputs.prior_data | default('N/A', true) }}">
                                     {{ analysis.display_inputs.prior_data | default('N/A', true) }}
+                                </p>
+                            </div>
+                            <div class="min-w-0 rounded-md bg-gray-50 px-3 py-2">
+                                <p class="font-semibold text-gray-500">Weight Type</p>
+                                <p class="mt-1 truncate text-gray-800"
+                                    title="{{ analysis.display_inputs.weight_type | default('Uniform', true) }}">
+                                    {{ analysis.display_inputs.weight_type | default('Uniform', true) }}
                                 </p>
                             </div>
                             <div class="min-w-0 rounded-md bg-gray-50 px-3 py-2">

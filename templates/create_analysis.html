@@ -162,6 +162,17 @@
                     </div>
 
                     <div>
+                        <label for="weight_type" class="form-label">Weight Type</label>
+                        <select id="weight_type" name="weight_type" class="form-control">
+                            {% for weight_type in weight_type_options %}
+                            <option value="{{ weight_type }}" {% if weight_type == 'Uniform' %}selected{% endif %}>
+                                {{ weight_type }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
                         <label for="min_number_of_targets" class="form-label">Minimum Targets per TF</label>
                         <input type="number" name="min_number_of_targets" id="min_number_of_targets" value="3" min="1"
                             class="form-control" />
