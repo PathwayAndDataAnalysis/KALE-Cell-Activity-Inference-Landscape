@@ -1,162 +1,143 @@
-# TF-PRED Webserver Setup Guide
+# KALE: Cell Activity Inference Landscape
+
+KALE is a Flask web application for uploading single-cell expression datasets, generating or using 2D layouts, and estimating transcription factor activity with a Z-Aggregate workflow and prior regulatory networks.
 
 ## Prerequisites
 
-- Python 3.12 or higher (can be installed via UV)
-- [UV Package Manager](https://astral.sh/uv) (for Python dependencies)
-- Node.js v22.11.x (for frontend dependencies)
+- Python 3.12 or higher
+- [uv](https://docs.astral.sh/uv/) for Python dependency management
+- Node.js and npm for Tailwind CSS assets
 - Git
 
-## Installation Steps
-
-### 1. Install UV Package Manager
+If Python 3.12 is not already installed, uv can install it:
 
 ```bash
-# For macOS/Linux
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# For Windows (PowerShell)
-(Invoke-WebRequest -Uri "https://astral.sh/uv/install.ps1" -UseBasicParsing).Content | pwsh -Command -
-```
-
-### 2. Install Python 3.12 via UV
-
-```bash
-# Install Python 3.12 using UV
 uv python install 3.12
 ```
 
-### 3. Install Node.js v22.11.
+## Setup
 
 ```bash
-# Install Node.js v22.11.x
-curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-sudo apt-get install -y nodejs
-```
-
-### 4. Clone and Setup Project
-
-```bash
-# Clone the repository
 git clone <repository-url>
-cd tf-pred-webserver
+cd KALE-Cell-Activity-Inference-Landscape
 
-# Create and activate virtual environment using UV
-uv venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-```
+# Install Python dependencies from pyproject.toml/uv.lock
+uv sync
 
-### 5. Setup Frontend Dependencies
-
-```bash
-# Install Node.js dependencies
+# Install frontend tooling and build the Tailwind CSS file used by Flask
 npm install
-
-npm run build:css  # Build CSS
+npm run build:css
 ```
 
-## Running the Application
+The Flask app stores local runtime data in `instance/` and uploaded user data in `user_uploads/`. These directories are created automatically when the app starts.
 
-### Development Mode
+## Running The App
+
+For development, run the CSS watcher in one terminal and Flask in another:
 
 ```bash
-# Terminal 1: Run frontend development server
 npm run watch:css
+```
 
-# Terminal 2: Run Flask backend
+```bash
 uv run main.py
 ```
 
+Then open `http://localhost:5000`. The server is configured to bind to `0.0.0.0:5000`, so it can also be reached from other devices on the same network if your firewall allows it.
 
+## Basic Workflow
 
-## Input File Requirements
+1. Sign up or log in.
+2. Upload input files from the dashboard and choose the correct file type for each upload.
+3. Create an analysis by selecting expression data, a prior network, preprocessing settings, and either an uploaded layout or generated UMAP settings.
+4. View completed analyses, recolor plots by metadata/gene expression/TF activity, adjust significance thresholds, and download TF activity results.
 
-This document outlines the required and optional input files for using the tool. Please review the formats carefully to ensure successful analysis.
+## Input Files
 
-### Quick Reference
+| Input | Supported formats | Upload file type | Required | Notes |
+| :-- | :-- | :-- | :-- | :-- |
+| AnnData object | `.h5ad` | Auto-detected as `h5ad File` | Required for Method 1 | Recommended all-in-one input. Expression comes from `X`; metadata comes from `obs`. |
+| Gene expression matrix | `.csv`, `.tsv` | `Gene Expression` | Required for Method 2 | Cells must be rows, genes must be columns, and the first column is treated as the cell index. |
+| Cell metadata | `.csv` | `Metadata` | Optional for Method 2 | The first column should contain cell IDs matching the expression matrix. |
+| 2D layout | `.csv`, `.tsv` | `2D Layout` | Optional | Use when you already have coordinates and do not want KALE to generate UMAP coordinates. |
+| Prior network | `.csv`, `.tsv` | `Prior Data` | Optional | Built-in priors are available if you do not upload a custom network. |
 
-| Input Type                     | Format(s)         | Required/Optional         | Notes                                                   |
-| :----------------------------- | :---------------- | :------------------------ | :------------------------------------------------------ |
-| **Gene Expression & Metadata** | `.h5ad` (AnnData) | Required (Method 1)       | The recommended, all-in-one format.                     |
-| **Gene Expression Data**       | `.tsv`, `.csv`    | Required (Method 2)       | Cells as rows, genes as columns.                        |
-| **Cell Metadata**              | `.tsv`, `.csv`    | Optional (Method 2)       | Cells as rows, metadata as columns. Highly recommended. |
-| **2D Layout**                  | `.tsv`, `.csv`    | Optional                  | Use if you have a pre-computed layout (e.g., UMAP).     |
-| **Species Setting**            | Tool setting      | Required if data is mouse | Select "Mouse" to map genes to human orthologs.         |
+### Method 1: AnnData Object
 
----
+Upload a `.h5ad` file and select **I have a .h5ad file** when creating the analysis. KALE reads expression values from the AnnData matrix and metadata columns from `adata.obs`.
 
-## Data Input Methods
+Gene identifiers should already match the selected prior network where possible. If more than half of the AnnData variable names look like Ensembl IDs, KALE tries to convert them to symbols using, in order:
 
-You can provide your data using one of the two methods below.
+- an existing `gene_symbols`, `symbol`, `gene_name`, or `symbols` column in `adata.var`
+- a `feature_name` fallback
+- bundled human or mouse GENCODE mapping files
 
-### Method 1: AnnData Object (Recommended)
+### Method 2: Separate Expression And Metadata Files
 
-The primary and most convenient input format is a Scanpy `anndata` object, which has a `.h5ad` file extension.
+Upload the expression matrix as `Gene Expression`. The matrix should look like this:
 
-- **File:** `data.h5ad`
+```csv
+cell_id,GeneA,GeneB,GeneC
+cell_1,0,2,5
+cell_2,3,0,1
+```
 
-This single file is expected to contain the gene expression matrix, cell metadata, and gene metadata. The tool will automatically parse this object to extract the necessary information.
+Metadata is optional, but if provided it should use the same cell IDs:
 
-<img src="https://falexwolf.de/img/scanpy/anndata.svg" alt="AnnData Structure" width="400" height="400">
-*Figure: The structure of an AnnData object.*
+```csv
+cell_id,cell_type,condition
+cell_1,T cell,control
+cell_2,B cell,treated
+```
 
-### Method 2: Separate TSV/CSV Files
+When using separate files, choose the species in the analysis form. This is used for mitochondrial gene handling and Ensembl-to-symbol mapping. KALE does not currently perform mouse-to-human ortholog conversion, so custom data and prior networks should use compatible gene identifiers.
 
-If you don't have an `anndata` object, you can provide your data as separate plain text files.
+## Layout Files
 
-#### 1. Gene Expression Data (Required)
+If you upload a layout instead of generating UMAP coordinates, the first column should contain cell IDs and the file must include:
 
-A TSV or CSV file containing the expression matrix.
+- `X_umap1`
+- `X_umap2`
+- `Cluster`
 
-- **Example:** `data.tsv`
-- **Format:** The matrix must be structured with **cells as rows** and **genes as columns**.
+Include `X_pca1` and `X_pca2` as well if you want the PCA plot view to work with the uploaded layout.
 
-#### 2. Cell Metadata (Optional)
+Example:
 
-A TSV or CSV file containing metadata for each cell. This file is optional but highly recommended for richer visualization and analysis.
+```csv
+,X_umap1,X_umap2,X_pca1,X_pca2,Cluster
+cell_1,1.2,-0.4,0.8,1.1,0
+cell_2,0.5,0.9,-0.3,0.2,1
+```
 
-- **Example:** `metadata.tsv`
-- **Format:** The file must have **cells as rows** and metadata attributes as columns. The order of cells should match the gene expression file.
+Generated layouts are saved with this same style of indexed CSV at `user_uploads/<user>/analyses/<analysis-id>/umap_coordinates.csv`.
 
----
+## Prior Networks
 
-## Optional Inputs & Settings
+KALE includes four built-in prior networks:
 
-### Custom 2D Layout
+- CausalPath
+- CollecTRI
+- Ensemble
+- DoRothEA
 
-If you have already computed a 2D layout (e.g., from UMAP or t-SNE) and want to use it for visualization instead of running a new analysis, you can provide a layout file.
+Custom prior uploads should be CSV or TSV files with `source`, `interaction`, and `target` columns. KALE also accepts `Regulator`, `RegulatoryEffect`, and `TargetGene` and renames them internally.
 
-- **How to use:** Select the "I have a 2D layout file" option in the tool.
-- **File:** A TSV or CSV file (e.g., `layout.tsv`).
-- **Format:** The file must contain cells as rows. The header must follow this exact format:
-  ```
-  ,X_umap1,X_umap2,X_pca1,X_pca2,Cluster
-  ```
-  > **Important:** Note the required **leading comma** before `X_umap1`.
+`interaction` can be numeric (`1` for activation, `-1` for inhibition) or one of the supported text labels such as `upregulates-expression`, `downregulates-expression`, `activation`, or `inhibition`.
 
-### Species Selection
+The available prior weight modes are:
 
-If your gene expression data is from a mouse model, you must select the appropriate species in the tool's interface.
+- `Uniform`
+- `Correlation`
+- `Specificity`
+- `NonzeroRate`
+- `Existing`
 
-- **How to use:** Select "Mouse" from the species dropdown menu.
-- **Functionality:** When this option is selected, the tool will automatically map the mouse gene names in your data to their human orthologs using a built-in `mouse2human` mapping file. If your data is human, you can leave the default setting.
+Use `Existing` only when the prior file includes a usable `weight` column.
 
 ## Troubleshooting
 
-1. If you encounter permission issues with UV installation, try:
-
-   ```bash
-   sudo curl -LsSf https://astral.sh/uv/install.sh | sh
-   ```
-
-2. For Node.js dependency issues:
-
-   ```bash
-   rm -rf node_modules
-   npm install
-   ```
-
-3. If Flask server fails to start:
-   - Ensure you're in the virtual environment
-   - Check if port 5000 is available
-   - Verify all Python dependencies are installed correctly
+- If styling is missing, run `npm run build:css` and restart Flask.
+- If port 5000 is busy, stop the process using that port or change the port in `main.py`.
+- If uploads fail, confirm that there is enough disk space for `user_uploads/`.
+- If an analysis reports no overlapping genes, check that expression gene names and prior-network target names use the same identifier style.
