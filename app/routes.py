@@ -30,10 +30,10 @@ from . import (
 from .benjamini_hotchberg import bh_fdr_correction
 from .run_z_aggregate import run_z_aggregate_analysis
 from .umap_pipeline import run_umap_pipeline
-from .utils import run_in_background, update_analysis_status, infer_delimiter, calculate_and_save_qc_metrics, \
+from .utils import run_in_background, update_analysis_status, calculate_and_save_qc_metrics, \
     get_user_specific_data_path, generate_scatter_plot_response, get_layout_and_metadata_dfs, generate_colored_traces, \
-    get_layout_and_gene_exp_levels_df, UMAP1_COL, UMAP2_COL, PCA1_COL, PCA2_COL, estimate_fdr_for_gene, \
-    check_system_resources, allowed_file, get_user_analysis_path
+    get_layout_and_gene_exp_levels_df, estimate_fdr_for_gene, \
+    check_system_resources, allowed_file, get_user_analysis_path, get_plot_axis_columns, read_layout_columns
 
 # Create Blueprints
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
@@ -112,6 +112,19 @@ def index():
             if ge_input.get('metadata_filepath'):
                 meta_name = ge_input['metadata_filepath'].split("/")[-1]
                 display_inputs['metadata'] = filename_map.get(meta_name, meta_name)
+
+        # Enrich Prior Data input
+        prior_input = inputs.get('prior_data', {})
+        if prior_input.get('prior_data_name'):
+            display_inputs['prior_data'] = prior_input['prior_data_name']
+        elif prior_input.get('prior_data_filepath'):
+            prior_name = prior_input['prior_data_filepath'].split("/")[-1]
+            display_inputs['prior_data'] = BUILT_IN_PRIOR_FILES.get(
+                prior_name,
+                filename_map.get(prior_name, prior_name),
+            )
+        else:
+            display_inputs['prior_data'] = "N/A"
 
         # Enrich Layout input
         layout_input = inputs.get('layout', {})
@@ -612,7 +625,7 @@ def get_metadata_color_by(analysis_id):
             current_app.logger.warning(f"Requested metadata column '{metadata_cluster}' not found.")
             return jsonify({"error": f"Metadata column '{metadata_cluster}' not found."}), 400
 
-        plot_df, metadata_df = get_layout_and_metadata_dfs(analysis, current_user.id)
+        plot_df, metadata_df = get_layout_and_metadata_dfs(analysis, current_user.id, plot_type=plot_type)
         if metadata_cluster not in metadata_df.columns:
             current_app.logger.warning(f"Metadata column '{metadata_cluster}' not found.")
             return (
@@ -674,25 +687,23 @@ def get_gene_expression_color_by(analysis_id):
             current_app.logger.warning(f"No gene expression provided in request for analysis_id={analysis_id}")
             return jsonify({"error": "Gene expression is required."}), 400
 
-        plot_df = get_layout_and_gene_exp_levels_df(analysis, gene_name)
+        plot_columns = get_plot_axis_columns(plot_type)
+        if not plot_columns:
+            return jsonify({"error": "Invalid plot type specified."}), 400
+        x_col, y_col, base_title = plot_columns
+        title = f"{base_title} Colored by {gene_name}"
 
-        title = ""
-        x_col = ""
-        y_col = ""
-        if plot_type.lower() == "umap_plot":
-            x_col, y_col = UMAP1_COL, UMAP2_COL
-            title = f"UMAP Plot Colored by {gene_name}"
-        elif plot_type.lower() == "pca_plot":
-            x_col, y_col = PCA1_COL, PCA2_COL
-            title = f"PCA Plot Colored by {gene_name}"
+        plot_df = get_layout_and_gene_exp_levels_df(analysis, gene_name, plot_type=plot_type)
+        if not isinstance(plot_df, pd.DataFrame):
+            return plot_df
 
         traces = {
-            "x": plot_df[x_col].tolist(),
-            "y": plot_df[y_col].tolist(),
+            "x": pd.to_numeric(plot_df[x_col], errors="coerce").tolist(),
+            "y": pd.to_numeric(plot_df[y_col], errors="coerce").tolist(),
             "mode": "markers",
             "type": "scattergl",
             "marker": {
-                "color": plot_df[gene_name].tolist(),
+                "color": pd.to_numeric(plot_df[gene_name], errors="coerce").tolist(),
                 "colorscale": "Viridis",
                 "showscale": True,
                 "colorbar": {"title": gene_name},
@@ -749,7 +760,11 @@ def change_fdr_tf(analysis_id):
             current_app.logger.error(f"Activity scores file '{activity_scores_path}' not found for analysis_id '{analysis_id}'.")
             return jsonify({"error": "Activity scores file not found. Cannot re-run FDR correction."}), 404
 
-        plot_df = pd.read_csv(layout_filepath, index_col=0, sep=infer_delimiter(layout_filepath))
+        plot_columns = get_plot_axis_columns(plot_type)
+        if not plot_columns:
+            return jsonify({"error": "Invalid plot type specified."}), 400
+        x_col, y_col, _ = plot_columns
+        plot_df = read_layout_columns(layout_filepath, [x_col, y_col])
         pvalues_df_tf = pd.read_parquet(pvalues_path, use_threads=True, columns=[tf_name])
         activity_scores_tf = pd.read_parquet(activity_scores_path, use_threads=True, columns=[tf_name])
 
@@ -760,7 +775,7 @@ def change_fdr_tf(analysis_id):
         final_output[pvalues_df_tf.isna()] = np.nan
         final_output = final_output.astype("Int64")
 
-        plot_df = plot_df.merge(final_output.astype(object), left_index=True, right_index=True)
+        plot_df = plot_df.join(final_output.astype(object), how="inner")
         traces, title, x_col, y_col = generate_colored_traces(
             plot_df=plot_df,
             plot_type=plot_type,
@@ -820,12 +835,16 @@ def change_pvalue_threshold_tf(analysis_id):
             current_app.logger.error(f"Activity scores file '{activity_scores_path}' not found for analysis_id '{analysis_id}'.")
             return jsonify({"error": "Activity scores file not found. Cannot re-run FDR correction."}), 404
 
-        plot_df = pd.read_csv(layout_filepath, index_col=0, sep=infer_delimiter(layout_filepath))
-        pvalues_df = pd.read_parquet(pvalues_path, use_threads=True)
+        plot_columns = get_plot_axis_columns(plot_type)
+        if not plot_columns:
+            return jsonify({"error": "Invalid plot type specified."}), 400
+        x_col, y_col, _ = plot_columns
+        plot_df = read_layout_columns(layout_filepath, [x_col, y_col])
+        pvalues_df_tf = pd.read_parquet(pvalues_path, use_threads=True, columns=[tf_name])
         activity_scores_tf = pd.read_parquet(activity_scores_path, use_threads=True, columns=[tf_name])
-        fdr = estimate_fdr_for_gene(pvalues_df, tf_name, pvalue_threshold)
+        fdr = estimate_fdr_for_gene(pvalues_df_tf, tf_name, pvalue_threshold)
 
-        pvalues_df_tf = pvalues_df[[tf_name]].dropna()
+        pvalues_df_tf = pvalues_df_tf.dropna()
         reject_mask = pvalues_df_tf < pvalue_threshold
         reject = reject_mask.where(pvalues_df_tf.notna())
         reject = reject.astype("boolean")
@@ -835,7 +854,7 @@ def change_pvalue_threshold_tf(analysis_id):
         final_output[pvalues_df_tf.isna()] = np.nan
         final_output = final_output.astype("Int64")
 
-        plot_df = plot_df.merge(final_output.astype(object), left_index=True, right_index=True)
+        plot_df = plot_df.join(final_output.astype(object), how="inner")
         traces, title, x_col, y_col = generate_colored_traces(
             plot_df=plot_df,
             plot_type=plot_type,

@@ -99,6 +99,24 @@
                         </dl>
                     </section>
 
+                    {% set prior_data = analysis.inputs.get('prior_data', {}) %}
+                    {% set prior_name = prior_data.get('prior_data_name') or prior_data.get('prior_data_filepath') or 'N/A' %}
+                    <section class="rounded-md border border-gray-200 bg-white p-4">
+                        <h3 class="mb-3 text-sm font-semibold text-gray-900">Prior Data</h3>
+                        <dl class="grid gap-2 text-sm sm:grid-cols-2">
+                            <div class="rounded-md bg-gray-50 px-3 py-2">
+                                <dt class="text-gray-500">Prior</dt>
+                                <dd class="mt-1 break-words font-medium text-gray-900">{{ prior_name | basename }}</dd>
+                            </div>
+                            <div class="rounded-md bg-gray-50 px-3 py-2">
+                                <dt class="text-gray-500">Minimum Targets per TF</dt>
+                                <dd class="mt-1 font-medium text-gray-900">
+                                    {{ prior_data.get('min_number_of_targets', 'N/A') }}
+                                </dd>
+                            </div>
+                        </dl>
+                    </section>
+
                     <section class="rounded-md border border-gray-200 bg-white p-4">
                         <h3 class="mb-3 text-sm font-semibold text-gray-900">Data Filtering</h3>
                         <dl class="grid gap-2 text-sm sm:grid-cols-2">

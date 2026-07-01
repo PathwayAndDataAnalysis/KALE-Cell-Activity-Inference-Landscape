@@ -2,10 +2,13 @@ console.log("Analysis object:", window.analysis);
 
 const defaultPointSize = 6;
 const defaultOpacity = 0.5;
+const hoverPointLimit = 50000;
+const wheelZoomSpeed = 0.001;
 
 // Plot configuration panel logic
 const plotConfigForm = document.getElementById("plot-config-form");
 const plotTitle = document.getElementById("plot-title");
+const scatterPlotDiv = document.getElementById("scatterPlot");
 const plotTypeSelect = document.getElementById("plot-type");
 const colorBySelect = document.getElementById("color-by");
 const metadataColSelectionDiv = document.getElementById("metadata-column-selection-div");
@@ -31,6 +34,152 @@ const plotLoadingSpinner = document.getElementById("plot-loading-spinner");
 const changeThresholdTypeDiv = document.getElementById("change-threshold-type-div");
 const fdrCorrectionRadio = document.getElementById("fdr-correction-radio");
 const pValueThresholdRadio = document.getElementById("p-value-threshold-radio");
+const plotConfig = {
+	responsive: true,
+	displayModeBar: true,
+	displaylogo: false,
+	scrollZoom: false,
+};
+
+let plotRevision = 0;
+let pendingMarkerStyleFrame = null;
+let pendingResizeFrame = null;
+let pendingWheelZoomFrame = null;
+let pendingWheelRanges = null;
+let wheelZoomAttached = false;
+
+function toFloat32Array(values) {
+	if (!Array.isArray(values)) return values;
+
+	const typedValues = new Float32Array(values.length);
+	for (let i = 0; i < values.length; i += 1) {
+		if (values[i] === null || values[i] === undefined) {
+			typedValues[i] = Number.NaN;
+		} else {
+			const value = Number(values[i]);
+			typedValues[i] = Number.isFinite(value) ? value : Number.NaN;
+		}
+	}
+	return typedValues;
+}
+
+function getCurrentMarkerStyle() {
+	return {
+		size: pointSizeSlider ? Number(pointSizeSlider.value) : defaultPointSize,
+		opacity: opacitySlider ? Number(opacitySlider.value) : defaultOpacity,
+	};
+}
+
+function scheduleMarkerStyleUpdate() {
+	if (pendingMarkerStyleFrame !== null) return;
+
+	pendingMarkerStyleFrame = requestAnimationFrame(() => {
+		pendingMarkerStyleFrame = null;
+		if (!scatterPlotDiv || !scatterPlotDiv.data) return;
+
+		const markerStyle = getCurrentMarkerStyle();
+		Plotly.restyle(scatterPlotDiv, {
+			"marker.size": markerStyle.size,
+			"marker.opacity": markerStyle.opacity,
+		});
+	});
+}
+
+function schedulePlotResize() {
+	if (pendingResizeFrame !== null) return;
+
+	pendingResizeFrame = requestAnimationFrame(() => {
+		pendingResizeFrame = null;
+		if (scatterPlotDiv) Plotly.Plots.resize(scatterPlotDiv);
+	});
+}
+
+function getAxisRanges() {
+	const xaxis = scatterPlotDiv?._fullLayout?.xaxis;
+	const yaxis = scatterPlotDiv?._fullLayout?.yaxis;
+	if (!xaxis?.range || !yaxis?.range) return null;
+
+	return {
+		x: [Number(xaxis.range[0]), Number(xaxis.range[1])],
+		y: [Number(yaxis.range[0]), Number(yaxis.range[1])],
+	};
+}
+
+function getPlotPointerFractions(event) {
+	const size = scatterPlotDiv?._fullLayout?._size;
+	if (!size) return null;
+
+	const rect = scatterPlotDiv.getBoundingClientRect();
+	const plotX = event.clientX - rect.left - size.l;
+	const plotY = event.clientY - rect.top - size.t;
+
+	return {
+		x: Math.min(Math.max(plotX / size.w, 0), 1),
+		y: Math.min(Math.max(plotY / size.h, 0), 1),
+	};
+}
+
+function zoomRanges(ranges, pointer, zoomFactor) {
+	const xSpan = ranges.x[1] - ranges.x[0];
+	const ySpan = ranges.y[1] - ranges.y[0];
+	const xValue = ranges.x[0] + pointer.x * xSpan;
+	const yValue = ranges.y[1] - pointer.y * ySpan;
+	const nextXSpan = xSpan * zoomFactor;
+	const nextYSpan = ySpan * zoomFactor;
+
+	return {
+		x: [xValue - pointer.x * nextXSpan, xValue + (1 - pointer.x) * nextXSpan],
+		y: [yValue - (1 - pointer.y) * nextYSpan, yValue + pointer.y * nextYSpan],
+	};
+}
+
+function scheduleWheelZoomRelayout() {
+	if (pendingWheelZoomFrame !== null) return;
+
+	pendingWheelZoomFrame = requestAnimationFrame(() => {
+		pendingWheelZoomFrame = null;
+		if (!pendingWheelRanges) return;
+
+		const ranges = pendingWheelRanges;
+		pendingWheelRanges = null;
+		Plotly.relayout(scatterPlotDiv, {
+			"xaxis.range": ranges.x,
+			"yaxis.range": ranges.y,
+		});
+	});
+}
+
+function handlePlotWheelZoom(event) {
+	if (!scatterPlotDiv?._fullLayout) return;
+	const pointer = getPlotPointerFractions(event);
+	const currentRanges = pendingWheelRanges || getAxisRanges();
+	if (!pointer || !currentRanges) return;
+
+	event.preventDefault();
+	event.stopPropagation();
+
+	const zoomFactor = Math.exp(event.deltaY * wheelZoomSpeed);
+	pendingWheelRanges = zoomRanges(currentRanges, pointer, zoomFactor);
+	scheduleWheelZoomRelayout();
+}
+
+function attachWheelZoom() {
+	if (!scatterPlotDiv || wheelZoomAttached) return;
+	scatterPlotDiv.addEventListener("wheel", handlePlotWheelZoom, { passive: false });
+	wheelZoomAttached = true;
+}
+
+function getTitleText(title) {
+	if (!title) return "";
+	if (typeof title === "string") return title;
+	return title.text || "";
+}
+
+function getAxisTitle(axis) {
+	if (!axis || !axis.title) return "";
+	if (typeof axis.title === "string") return axis.title;
+	return axis.title.text || "";
+}
 
 function clearAllSelections() {
 	if (colorBySelect) colorBySelect.value = "select_cluster_type";
@@ -50,6 +199,8 @@ function clearAllSelections() {
 	}
 	if (pointSizeSlider) pointSizeSlider.value = defaultPointSize;
 	if (opacitySlider) opacitySlider.value = defaultOpacity;
+	if (pointSizeValue) pointSizeValue.textContent = defaultPointSize;
+	if (opacityValue) opacityValue.textContent = defaultOpacity;
 	if (fdrLevel) fdrLevel.value = "";
 	if (pValueThreshold) pValueThreshold.value = "";
 }
@@ -69,8 +220,9 @@ plotTypeSelect.addEventListener("change", function () {
 
 colorScaleSelectionDiv.addEventListener("change", function (e) {
 	console.log("ColorScaleSelectionDiv changed successfully.");
+	if (!scatterPlotDiv || !scatterPlotDiv.data) return;
 	Plotly.restyle(
-		"scatterPlot",
+		scatterPlotDiv,
 		{
 			"marker.colorscale": [e.target.value],
 		},
@@ -80,21 +232,22 @@ colorScaleSelectionDiv.addEventListener("change", function (e) {
 
 if (pointSizeSlider && pointSizeValue) {
 	pointSizeSlider.addEventListener("input", function (e) {
-		Plotly.restyle("scatterPlot", { "marker.size": Number(e.target.value) });
 		pointSizeValue.textContent = e.target.value;
+		scheduleMarkerStyleUpdate();
 	});
 }
 
 if (opacitySlider && opacityValue) {
 	opacitySlider.addEventListener("input", function (e) {
-		Plotly.restyle("scatterPlot", { "marker.opacity": Number(e.target.value) });
 		opacityValue.textContent = e.target.value;
+		scheduleMarkerStyleUpdate();
 	});
 }
 
 if (showLegendCheckbox) {
 	showLegendCheckbox.addEventListener("change", function (e) {
-		Plotly.relayout("scatterPlot", { showlegend: e.target.checked });
+		if (!scatterPlotDiv || !scatterPlotDiv.data) return;
+		Plotly.relayout(scatterPlotDiv, { showlegend: e.target.checked });
 	});
 }
 
@@ -167,55 +320,78 @@ function updatePlot(plot_data) {
 			(acc, trace) => acc + (trace.x ? trace.x.length : 0),
 			0,
 		);
-		totalCells.textContent = `Total Cells: ${totalCellsCount}`;
-		console.log(plot_data);
+		const disableHover = totalCellsCount > hoverPointLimit;
+		const markerStyle = getCurrentMarkerStyle();
+		const data = plot_data.data.map((trace) => {
+			const pointCount = trace.x ? trace.x.length : 0;
+			const label = String(trace.cluster || trace.name || "");
+			const marker = {
+				...(trace.marker || {}),
+				size: markerStyle.size,
+				opacity: markerStyle.opacity,
+				line: { width: 0, ...((trace.marker || {}).line || {}) },
+			};
 
-		plot_data.layout.dragmode = "pan"; // Set default to pan
-		plot_data.layout.hovermode = "closest"; // Set default hover mode
-		plot_data.layout.showlegend = showLegendCheckbox.checked;
-		plot_data.layout.legend = {
-			x: 1, // Position legend slightly to the right of the plot area (0-1 is plot area)
-			y: 1, // Align legend top with plot top
-			xanchor: "right", // Anchor the legend's left edge to the x position
-			yanchor: "top", // Anchor the legend's top edge to the y position
-			traceorder: "normal", // or 'reversed' or 'grouped'
-		};
-		plot_data.layout.margin = {
-			l: 15, // left
-			r: 15, // right
-			t: 30, // top
-			b: 15, // bottom
-		};
-		plot_data.layout.autosize = true;
-		plot_data.layout.xaxis = {
-			title: plot_data.layout.xaxis.title,
-		};
-		plot_data.layout.yaxis = {
-			title: plot_data.layout.yaxis.title,
-		};
-		plot_data.data.forEach((trace) => {
-			if (trace.cluster && trace.x && trace.x.length !== undefined) {
-				const clusterCount = trace.x.length;
-				trace.cluster = `${trace.cluster} (${clusterCount})`;
-				trace.name = `${trace.name} (${clusterCount})`;
-			}
-			trace.marker = trace.marker || {};
-			trace.marker.size = pointSizeSlider ? Number(pointSizeSlider.value) : defaultPointSize;
-			trace.marker.opacity = opacitySlider ? Number(opacitySlider.value) : defaultOpacity;
-		});
+			if (Array.isArray(marker.color)) marker.color = toFloat32Array(marker.color);
 
-		Plotly.newPlot("scatterPlot", plot_data.data, plot_data.layout, {
-			responsive: true,
-			displayModeBar: true,
-			displaylogo: false,
-			scrollZoom: true,
+			return {
+				...trace,
+				cluster: label,
+				name: label ? `${label} (${pointCount.toLocaleString()})` : trace.name,
+				x: toFloat32Array(trace.x),
+				y: toFloat32Array(trace.y),
+				hoverinfo: disableHover ? "skip" : trace.hoverinfo,
+				marker,
+			};
 		});
+		const layout = {
+			...plot_data.layout,
+			dragmode: "pan",
+			hovermode: disableHover ? false : "closest",
+			showlegend: showLegendCheckbox ? showLegendCheckbox.checked : true,
+			legend: {
+				x: 1,
+				y: 1,
+				xanchor: "right",
+				yanchor: "top",
+				traceorder: "normal",
+			},
+			margin: {
+				l: 15,
+				r: 15,
+				t: 30,
+				b: 15,
+			},
+			autosize: true,
+			uirevision: plotTypeSelect ? plotTypeSelect.value : "analysis-plot",
+			datarevision: ++plotRevision,
+			xaxis: {
+				...(plot_data.layout.xaxis || {}),
+				title: getAxisTitle(plot_data.layout.xaxis),
+				automargin: true,
+				constrain: "range",
+				constraintoward: "center",
+			},
+			yaxis: {
+				...(plot_data.layout.yaxis || {}),
+				title: getAxisTitle(plot_data.layout.yaxis),
+				automargin: true,
+				scaleanchor: "x",
+				scaleratio: 1,
+				constrain: "range",
+				constraintoward: "center",
+			},
+		};
+
+		totalCells.textContent = `Total Cells: ${totalCellsCount.toLocaleString()}`;
+		Plotly.react(scatterPlotDiv, data, layout, plotConfig);
+		attachWheelZoom();
 
 		if (plot_data.fdr_level) fdrLevel.value = plot_data.fdr_level;
 
 		if (plot_data.p_value_threshold) pValueThreshold.value = plot_data.p_value_threshold;
 
-		if (plot_data.layout.title) plotTitle.textContent = plot_data.layout.title;
+		if (plot_data.layout.title) plotTitle.textContent = getTitleText(plot_data.layout.title);
 
 		if (plot_data.p_value_threshold) pValueThreshold.value = plot_data.p_value_threshold;
 	} else throw new Error("Received data is not in the expected format.");
@@ -403,7 +579,7 @@ document.addEventListener("DOMContentLoaded", function () {
 		});
 
 	window.addEventListener("resize", () => {
-		Plotly.Plots.resize("scatterPlot");
+		schedulePlotResize();
 	});
 
 	if (moreInfoBtn && modal && closeModalBtn) {

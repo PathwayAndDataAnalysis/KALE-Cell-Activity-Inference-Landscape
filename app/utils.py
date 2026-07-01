@@ -1,6 +1,7 @@
 import shutil
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from functools import lru_cache
 import os
 
 import psutil
@@ -25,6 +26,69 @@ UMAP1_COL = "X_umap1"
 UMAP2_COL = "X_umap2"
 PCA1_COL = "X_pca1"
 PCA2_COL = "X_pca2"
+
+TF_ACTIVITY_COLORS = {
+    "Active": "red",
+    "Inactive": "blue",
+    "Insignificant": "gray",
+    "Not_Enough_Data": "yellow",
+}
+TF_ACTIVITY_LABELS = {
+    1: "Active",
+    -1: "Inactive",
+    0: "Insignificant",
+}
+
+
+def get_plot_axis_columns(plot_type):
+    normalized_plot_type = (plot_type or "").lower()
+    if normalized_plot_type == "umap_plot":
+        return UMAP1_COL, UMAP2_COL, "UMAP Plot"
+    if normalized_plot_type == "pca_plot":
+        return PCA1_COL, PCA2_COL, "PCA Plot"
+    return None
+
+
+@lru_cache(maxsize=16)
+def _read_layout_columns_cached(layout_filepath, delimiter, file_mtime_ns, file_size, columns):
+    header = pd.read_csv(layout_filepath, sep=delimiter, nrows=0)
+    requested_columns = tuple(dict.fromkeys(columns))
+    missing_columns = [column for column in requested_columns if column not in header.columns]
+    if missing_columns:
+        raise ValueError(f"Layout file is missing required columns: {', '.join(missing_columns)}")
+
+    index_column = header.columns[0]
+    usecols = [index_column, *[column for column in requested_columns if column != index_column]]
+    return pd.read_csv(layout_filepath, index_col=0, sep=delimiter, usecols=usecols)
+
+
+def read_layout_columns(layout_filepath, columns):
+    file_stat = os.stat(layout_filepath)
+    delimiter = infer_delimiter(layout_filepath)
+    layout_df = _read_layout_columns_cached(
+        layout_filepath,
+        delimiter,
+        file_stat.st_mtime_ns,
+        file_stat.st_size,
+        tuple(dict.fromkeys(columns)),
+    )
+    return layout_df.copy(deep=False)
+
+
+def _series_to_plotly_values(series):
+    return pd.to_numeric(series, errors="coerce").tolist()
+
+
+def _make_scattergl_trace(label, group_df, x_col, y_col, marker=None):
+    return {
+        "cluster": str(label),
+        "x": _series_to_plotly_values(group_df[x_col]),
+        "y": _series_to_plotly_values(group_df[y_col]),
+        "mode": "markers",
+        "type": "scattergl",
+        "name": str(label),
+        "marker": marker or {},
+    }
 
 
 def run_in_background(fn, *args, **kwargs):
@@ -378,35 +442,18 @@ def generate_scatter_plot_response(analysis_to_view, plot_type=None):
             current_app.logger.error(f"Layout file '{layout_filepath}' not found!")
             return jsonify({"error": "Layout file not found."}), 404
 
-        # Determine which coordinates to load
-        if plot_type == 'umap_plot':
-            column_names = [UMAP1_COL, UMAP2_COL]
-            plot_title = "UMAP Plot"
-        elif plot_type == 'pca_plot':
-            plot_title = "PCA Plot"
-            column_names = [PCA1_COL, PCA2_COL]
-        else:
+        plot_columns = get_plot_axis_columns(plot_type)
+        if not plot_columns:
             return jsonify({"error": "Invalid plot type specified."}), 400
+        x_col, y_col, plot_title = plot_columns
 
-        plot_df = pd.read_csv(layout_filepath, index_col=0, sep=infer_delimiter(layout_filepath))
-
-        traces = []
-        for cluster_label, group_df in plot_df.groupby(CLUSTER_COL):
-            traces.append(
-                {
-                    "cluster": str(cluster_label),
-                    "x": group_df[column_names[0]].tolist(),
-                    "y": group_df[column_names[1]].tolist(),
-                    "mode": "markers",
-                    "type": "scattergl",
-                    "name": str(cluster_label),
-                }
-            )
+        plot_df = read_layout_columns(layout_filepath, [x_col, y_col, CLUSTER_COL])
+        traces, _, _, _ = generate_colored_traces(plot_df, plot_type=plot_type)
 
         layout = {
             "title": plot_title,
-            "xaxis": {"title": column_names[0]},
-            "yaxis": {"title": column_names[1]},
+            "xaxis": {"title": x_col},
+            "yaxis": {"title": y_col},
         }
 
         graph_data = {
@@ -425,11 +472,15 @@ def generate_scatter_plot_response(analysis_to_view, plot_type=None):
         return jsonify({"error": "An unexpected error occurred while preparing the plot."}), 500
 
 
-def get_layout_and_metadata_dfs(analysis, user_id):
+def get_layout_and_metadata_dfs(analysis, user_id, plot_type="umap_plot"):
     layout_source = analysis.get("inputs", {}).get("layout", {}).get("source")
 
     layout_filepath = analysis.get("inputs").get("layout").get("layout_filepath")
-    plot_df = pd.read_csv(layout_filepath, index_col=0, sep=infer_delimiter(layout_filepath))
+    plot_columns = get_plot_axis_columns(plot_type)
+    if not plot_columns:
+        raise ValueError(f"Unknown plot type: {plot_type}")
+    x_col, y_col, _ = plot_columns
+    plot_df = read_layout_columns(layout_filepath, [x_col, y_col])
 
     if layout_source == "FILE":
         metadata_filepath = analysis.get("inputs").get("gene_expression").get("metadata_filepath", {})
@@ -443,10 +494,14 @@ def get_layout_and_metadata_dfs(analysis, user_id):
     return plot_df, metadata_df
 
 
-def get_layout_and_gene_exp_levels_df(analysis, gene_name):
+def get_layout_and_gene_exp_levels_df(analysis, gene_name, plot_type="umap_plot"):
     try:
         layout_filepath = (analysis.get("inputs").get("layout").get("layout_filepath"))
         z_score_filepath = analysis.get("z_scores_path", "")
+        plot_columns = get_plot_axis_columns(plot_type)
+        if not plot_columns:
+            return jsonify({"error": f"Unknown plot type: {plot_type}"}), 400
+        x_col, y_col, _ = plot_columns
 
         if not os.path.exists(layout_filepath):
             current_app.logger.error(f"Layout file '{layout_filepath}' not found for analysis_id '{analysis['id']}'.")
@@ -456,10 +511,10 @@ def get_layout_and_gene_exp_levels_df(analysis, gene_name):
             current_app.logger.error(f"Z-scores file '{z_score_filepath}' not found.")
             return jsonify({"error": "Z-scores file not found. Delete this analysis and create new analysis"}), 404
 
-        plot_df = pd.read_csv(layout_filepath, index_col=0, sep=infer_delimiter(layout_filepath))
+        plot_df = read_layout_columns(layout_filepath, [x_col, y_col])
         gene_exp_levels_df = pd.read_parquet(z_score_filepath, use_threads=True, columns=[gene_name])
 
-        plot_df = plot_df.merge(gene_exp_levels_df, left_index=True, right_index=True)
+        plot_df = plot_df.join(gene_exp_levels_df, how="inner")
         plot_df = plot_df.dropna(subset=[gene_name])
 
         return plot_df
@@ -471,54 +526,28 @@ def get_layout_and_gene_exp_levels_df(analysis, gene_name):
 def generate_colored_traces(
         plot_df, plot_type="umap_plot", cluster_col="Cluster", tf_activity=None
 ):
-    if plot_type.lower() == "umap_plot":
-        x_col, y_col = UMAP1_COL, UMAP2_COL
-        title = (
-            f"UMAP Plot Colored by {cluster_col if not tf_activity else tf_activity}"
-        )
-    elif plot_type.lower() == "pca_plot":
-        x_col, y_col = PCA1_COL, PCA2_COL
-        title = f"PCA Plot Colored by {cluster_col if not tf_activity else tf_activity}"
-    else:
+    plot_columns = get_plot_axis_columns(plot_type)
+    if not plot_columns:
         current_app.logger.warning(f"Unknown plot type '{plot_type}'")
         return jsonify({"error": f"Unknown plot type: {plot_type}"}), 400
+    x_col, y_col, base_title = plot_columns
+    title = f"{base_title} Colored by {cluster_col if not tf_activity else tf_activity}"
 
     traces = []
     if tf_activity:
-        plot_df[tf_activity] = plot_df[tf_activity].replace(
-            {1: "Active", -1: "Inactive", 0: "Insignificant", np.nan: "Not_Enough_Data"}
-        )
-
-        unique_clusters = {
-            "Active": "red",
-            "Inactive": "blue",
-            "Insignificant": "gray",
-            "Not_Enough_Data": "yellow",
-        }
-        for cluster in unique_clusters.keys():
+        activity_labels = plot_df[tf_activity].replace(TF_ACTIVITY_LABELS).fillna("Not_Enough_Data")
+        for cluster, color in TF_ACTIVITY_COLORS.items():
             traces.append(
-                {
-                    "cluster": cluster,
-                    "x": plot_df[plot_df[tf_activity] == cluster][x_col].tolist(),
-                    "y": plot_df[plot_df[tf_activity] == cluster][y_col].tolist(),
-                    "mode": "markers",
-                    "type": "scattergl",
-                    "name": cluster,
-                    "marker": {
-                        "color": unique_clusters[cluster],
-                    },
-                }
+                _make_scattergl_trace(
+                    cluster,
+                    plot_df.loc[activity_labels == cluster, [x_col, y_col]],
+                    x_col,
+                    y_col,
+                    marker={"color": color},
+                )
             )
     else:
-        for cluster in plot_df[cluster_col].unique().tolist():
-            traces.append(
-                {
-                    "cluster": cluster,
-                    "x": plot_df[plot_df["Cluster"] == cluster][x_col].tolist(),
-                    "y": plot_df[plot_df["Cluster"] == cluster][y_col].tolist(),
-                    "mode": "markers",
-                    "type": "scattergl",
-                    "name": cluster,
-                }
-            )
+        for cluster, group_df in plot_df.groupby(cluster_col, sort=False, observed=True, dropna=False):
+            cluster_label = "Not_Enough_Data" if pd.isna(cluster) else cluster
+            traces.append(_make_scattergl_trace(cluster_label, group_df, x_col, y_col))
     return traces, title, x_col, y_col
