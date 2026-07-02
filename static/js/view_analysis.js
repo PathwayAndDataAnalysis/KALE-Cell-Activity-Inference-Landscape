@@ -65,6 +65,10 @@ function getPlotThemeLayout() {
 	return window.appTheme ? window.appTheme.getPlotlyLayout() : {};
 }
 
+function getCsrfToken() {
+	return document.querySelector('meta[name="csrf-token"]')?.content || "";
+}
+
 function withPlotTheme(layout) {
 	const theme = getPlotThemeLayout();
 
@@ -678,7 +682,7 @@ applyCorrectionBtn.addEventListener("click", function (e) {
 
 geneEntryInput.addEventListener("keypress", function (event) {
 	if (event.key === "Enter") {
-		let gene_name = this.value.trim().toUpperCase();
+		let gene_name = this.value.trim();
 		if (gene_name) {
 			const apiUrl = `/analysis/gene-expression/${window.analysis.id}`;
 
@@ -710,7 +714,7 @@ async function updatePlotData(apiUrl, method, body) {
 		// 1. Make the API request
 		const response = await fetch(apiUrl, {
 			method: method,
-			headers: { "Content-Type": "application/json" },
+			headers: { "Content-Type": "application/json", "X-CSRFToken": getCsrfToken() },
 			body: body ? JSON.stringify(body) : null,
 		});
 
@@ -745,7 +749,7 @@ async function getPlotData(apiUrl, method, body) {
 		// 1. Make the API request
 		const response = await fetch(apiUrl, {
 			method: method,
-			headers: { "Content-Type": "application/json" },
+			headers: { "Content-Type": "application/json", "X-CSRFToken": getCsrfToken() },
 			body: body ? JSON.stringify(body) : undefined,
 		});
 

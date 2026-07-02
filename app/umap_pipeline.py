@@ -46,7 +46,7 @@ def validate_input_files(analysis_data):
 
 
 def run_umap_pipeline(
-    user_id, analysis_id, analysis_data, have_2d_layout, ignore_zeros, update_status_fn, run_analysis_fn
+    user_id, analysis_id, analysis_data, have_2d_layout, update_status_fn, run_analysis_fn
 ):
     try:
         current_app.logger.info(f"[UMAP] Starting UMAP pipeline for user '{user_id}', analysis '{analysis_id}'.")
@@ -92,7 +92,11 @@ def run_umap_pipeline(
 
             if gene_expr.get("metadata_filepath"):
                 current_app.logger.info(f"[UMAP] Loading metadata file: {gene_expr['metadata_filepath']}")
-                meta_data = pd.read_csv(gene_expr["metadata_filepath"], index_col=0)
+                meta_data = pd.read_csv(
+                    gene_expr["metadata_filepath"],
+                    index_col=0,
+                    sep=infer_delimiter(gene_expr["metadata_filepath"]),
+                )
 
                 # Ensure metadata and expression data have the same cells
                 common_cells = gene_exp.index.intersection(meta_data.index)
@@ -118,7 +122,10 @@ def run_umap_pipeline(
 
         # ------- Check for Ensembl IDs and map to gene symbols -------
         mapped = False
-        if adata.var.index.str.startswith("ENSG").mean() > 0.5:
+        var_index = adata.var.index.astype(str)
+        human_ensembl_fraction = var_index.str.startswith("ENSG").mean()
+        mouse_ensembl_fraction = var_index.str.startswith("ENSMUSG").mean()
+        if max(human_ensembl_fraction, mouse_ensembl_fraction) > 0.5:
             current_app.logger.info("[UMAP] Detected Ensembl IDs in var index. Converting to gene symbols.")
             common_names = ['gene_symbols', 'symbol', 'gene_name', 'symbols']
 
@@ -146,7 +153,10 @@ def run_umap_pipeline(
 
             if not mapped:
                 current_app.logger.info("[UMAP] No gene-symbol column found. Using bundled GENCODE mapping.")
-                if gene_expr.get("species") == "mouse":
+                if gene_expr.get("species") == "mouse" or (
+                    gene_expr.get("species") == "auto"
+                    and mouse_ensembl_fraction > human_ensembl_fraction
+                ):
                     ensembl_map_file = "mouse_gencode_mapping.csv"
                 else:
                     ensembl_map_file = "human_gencode_mapping.csv"
@@ -298,6 +308,13 @@ def run_umap_pipeline(
             # Update status to Completed
             update_status_fn(user_id=user_id, analysis_id=analysis_id, status="Completed", umap_csv_path=umap_csv_path, metadata_cols=metadata_cols)
             current_app.logger.info(f"[UMAP] UMAP pipeline completed successfully for analysis '{analysis_id}'.")
+        elif metadata_cols:
+            update_status_fn(
+                user_id=user_id,
+                analysis_id=analysis_id,
+                status=None,
+                metadata_cols=metadata_cols,
+            )
 
         # 5. Run analysis function
         current_app.logger.info(f"[UMAP] Running analysis function for analysis '{analysis_id}'.")
@@ -308,7 +325,6 @@ def run_umap_pipeline(
                 analysis_id=analysis_id,
                 analysis_data=analysis_data,
                 adata=adata,
-                ignore_zeros=ignore_zeros,
                 update_analysis_status_fn=update_status_fn,
             )
         except Exception as e:

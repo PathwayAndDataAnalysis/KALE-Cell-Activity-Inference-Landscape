@@ -202,13 +202,13 @@
                                     analysis.inputs.layout.umap_settings.random_state }}</dd>
                             </div>
                             {% endif %}
-                            {% else %}
-                            <div class="sm:col-span-2">
-                                <dt class="text-gray-500">Source</dt>
-                                <dd class="mt-1 break-words font-medium text-gray-900">{{
-                                    analysis.inputs.gene_expression.gene_exp_filepath }}</dd>
-                            </div>
-                            {% endif %}
+	                            {% else %}
+	                            <div class="sm:col-span-2">
+	                                <dt class="text-gray-500">Source</dt>
+	                                <dd class="mt-1 break-words font-medium text-gray-900">{{
+	                                    analysis.inputs.layout.layout_filepath | basename }}</dd>
+	                            </div>
+	                            {% endif %}
                         </dl>
                     </section>
                 </div>

@@ -10,8 +10,7 @@ import pandas as pd
 from flask import current_app, jsonify
 import scanpy as sc
 import numpy as np
-from . import get_all_users_data, save_all_users_data, get_file_path
-from filelock import FileLock
+from . import get_file_path, update_all_users_data
 from scipy.sparse import issparse
 
 executor = ThreadPoolExecutor(max_workers=4)  # Adjust as needed
@@ -238,12 +237,7 @@ def calculate_and_save_qc_metrics(user_id, filename, file_path):
         qc_results = {}
         qc_status = "failed"
 
-    # --- Safely update users.json ---
-    users_json_path = "instance/users.json"
-    lock_path = users_json_path + ".lock"
-
-    with FileLock(lock_path):
-        all_users_data = get_all_users_data()
+    def save_qc_results(all_users_data):
         user_node = all_users_data.get(user_id)
         if user_node and 'files' in user_node:
             for i, file_info in enumerate(user_node['files']):
@@ -252,10 +246,11 @@ def calculate_and_save_qc_metrics(user_id, filename, file_path):
                     all_users_data[user_id]['files'][i]['qc_metrics'] = qc_results
                     all_users_data[user_id]['files'][i]['qc_status'] = qc_status
                     break
-        save_all_users_data(all_users_data)
-        current_app.logger.info(
-            f"[UTILS] QC metrics for {filename} saved successfully for user {user_id}."
-        )
+
+    update_all_users_data(save_qc_results)
+    current_app.logger.info(
+        f"[UTILS] QC metrics for {filename} saved successfully for user {user_id}."
+    )
 
 
 def update_analysis_status(
@@ -280,54 +275,57 @@ def update_analysis_status(
             f"[UTILS] Updating analysis status: user_id={user_id}, analysis_id={analysis_id}, status={status}, error={error}"
         )
 
-        all_users_data = get_all_users_data()
-        user_node = all_users_data.get(user_id, {})
-
-        if not user_node:
-            current_app.logger.error(f"[UTILS] User {user_id} not found in users data")
-            return
-
         found = False
-        for analysis in user_node.get("analyses", []):
-            if analysis["id"] == analysis_id:
-                if status:
-                    analysis["status"] = status
-                if metadata_cols:
-                    analysis["metadata_cols"] = metadata_cols
-                if tfs:
-                    analysis["tfs"] = tfs
-                if pvalues_path:
-                    analysis["pvalues_path"] = pvalues_path
-                if activation_path:
-                    analysis["activation_path"] = activation_path
-                if activity_scores_path:
-                    analysis["activity_scores_path"] = activity_scores_path
-                if bh_reject_path:
-                    analysis["bh_reject_path"] = bh_reject_path
-                if p_value_threshold or fdr_level:
-                    if p_value_threshold:
-                        analysis.get("inputs")["p_value_threshold"] = p_value_threshold
-                        if "fdr_level" in analysis.get("inputs", {}):
-                            del analysis["inputs"]["fdr_level"]
-                    else:
-                        analysis["inputs"]["fdr_level"] = fdr_level
-                        if "p_value_threshold" in analysis.get("inputs", {}):
-                            del analysis["inputs"]["p_value_threshold"]
-                if p_val_threshold_path:
-                    analysis["p_val_threshold_path"] = p_val_threshold_path
-                if z_scores_path:
-                    analysis["z_scores_path"] = z_scores_path
-                if umap_csv_path:
-                    layout = analysis.get("inputs", {}).get("layout", {})
-                    layout["layout_filepath"] = umap_csv_path
-                if error:
-                    analysis["error"] = error
-                    analysis["error_timestamp"] = datetime.now().isoformat()
-                found = True
-                break
+
+        def save_status_update(all_users_data):
+            nonlocal found
+            user_node = all_users_data.get(user_id, {})
+
+            if not user_node:
+                current_app.logger.error(f"[UTILS] User {user_id} not found in users data")
+                return
+
+            for analysis in user_node.get("analyses", []):
+                if analysis["id"] == analysis_id:
+                    if status:
+                        analysis["status"] = status
+                    if metadata_cols is not None:
+                        analysis["metadata_cols"] = metadata_cols
+                    if tfs is not None:
+                        analysis["tfs"] = tfs
+                    if pvalues_path:
+                        analysis["pvalues_path"] = pvalues_path
+                    if activation_path:
+                        analysis["activation_path"] = activation_path
+                    if activity_scores_path:
+                        analysis["activity_scores_path"] = activity_scores_path
+                    if bh_reject_path:
+                        analysis["bh_reject_path"] = bh_reject_path
+                    if p_value_threshold is not None or fdr_level is not None:
+                        if p_value_threshold is not None:
+                            analysis.get("inputs")["p_value_threshold"] = p_value_threshold
+                            if "fdr_level" in analysis.get("inputs", {}):
+                                del analysis["inputs"]["fdr_level"]
+                        else:
+                            analysis["inputs"]["fdr_level"] = fdr_level
+                            if "p_value_threshold" in analysis.get("inputs", {}):
+                                del analysis["inputs"]["p_value_threshold"]
+                    if p_val_threshold_path:
+                        analysis["p_val_threshold_path"] = p_val_threshold_path
+                    if z_scores_path:
+                        analysis["z_scores_path"] = z_scores_path
+                    if umap_csv_path:
+                        layout = analysis.get("inputs", {}).get("layout", {})
+                        layout["layout_filepath"] = umap_csv_path
+                    if error:
+                        analysis["error"] = error
+                        analysis["error_timestamp"] = datetime.now().isoformat()
+                    found = True
+                    break
+
+        update_all_users_data(save_status_update)
 
         if found:
-            save_all_users_data(all_users_data)
             current_app.logger.info(
                 f"[UTILS] Analysis status updated and saved for analysis_id={analysis_id}."
             )
@@ -473,8 +471,6 @@ def generate_scatter_plot_response(analysis_to_view, plot_type=None):
 
 
 def get_layout_and_metadata_dfs(analysis, user_id, plot_type="umap_plot"):
-    layout_source = analysis.get("inputs", {}).get("layout", {}).get("source")
-
     layout_filepath = analysis.get("inputs").get("layout").get("layout_filepath")
     plot_columns = get_plot_axis_columns(plot_type)
     if not plot_columns:
@@ -482,14 +478,20 @@ def get_layout_and_metadata_dfs(analysis, user_id, plot_type="umap_plot"):
     x_col, y_col, _ = plot_columns
     plot_df = read_layout_columns(layout_filepath, [x_col, y_col])
 
-    if layout_source == "FILE":
-        metadata_filepath = analysis.get("inputs").get("gene_expression").get("metadata_filepath", {})
-        metadata_df = pd.read_csv(get_file_path(metadata_filepath, user_id), index_col=0,
-                                  sep=infer_delimiter(metadata_filepath))
-    else:
-        h5ad_file = analysis.get("inputs").get("gene_expression").get("h5ad_filepath")
+    gene_expression = analysis.get("inputs", {}).get("gene_expression", {})
+    metadata_filepath = gene_expression.get("metadata_filepath")
+    h5ad_file = gene_expression.get("h5ad_filepath")
+
+    if metadata_filepath:
+        metadata_path = get_file_path(metadata_filepath, user_id)
+        metadata_df = pd.read_csv(
+            metadata_path, index_col=0, sep=infer_delimiter(metadata_path)
+        )
+    elif h5ad_file:
         adata = sc.read_h5ad(get_file_path(h5ad_file, user_id))
         metadata_df = pd.DataFrame(adata.obs)
+    else:
+        raise ValueError("No metadata source is available for this analysis.")
 
     return plot_df, metadata_df
 

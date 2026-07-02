@@ -1,6 +1,10 @@
-from flask import jsonify
-from app import create_app
+import os
 import traceback
+
+from flask import jsonify
+from werkzeug.exceptions import HTTPException
+
+from app import create_app
 
 application = create_app()
 
@@ -21,11 +25,15 @@ def not_found(e):
 
 @application.errorhandler(Exception)
 def handle_exception(e):
+    if isinstance(e, HTTPException):
+        return jsonify(error=e.description), e.code
+
     application.logger.error(f"Unhandled exception: {e}")
     application.logger.error(traceback.format_exc())
     return jsonify(error="An unexpected error occurred"), 500
 
 if __name__ == "__main__":
-    # The host '0.0.0.0' makes the server accessible from other devices on the network.
-    # debug=True should NOT be used in production.
-    application.run(host="0.0.0.0", port=5000, debug=True)
+    debug = os.environ.get("FLASK_DEBUG", "").lower() in {"1", "true", "yes"}
+    host = os.environ.get("FLASK_RUN_HOST", "127.0.0.1")
+    port = int(os.environ.get("FLASK_RUN_PORT", os.environ.get("PORT", 5000)))
+    application.run(host=host, port=port, debug=debug)

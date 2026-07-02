@@ -295,7 +295,6 @@ def run_z_aggregate_analysis(
     analysis_id,
     analysis_data,
     adata,
-    ignore_zeros=None,
     update_analysis_status_fn=None,
 ):
     try:
@@ -333,6 +332,11 @@ def run_z_aggregate_analysis(
 
         priors = load_prior_network(prior_data_path, weight_type=weight_type, adata=adata)
         activity_scores_df, pvalues_df = run_z_aggregate(adata, priors, min_targets=min_targets)
+        if activity_scores_df.empty or pvalues_df.empty:
+            raise ValueError(
+                "No transcription factors had enough overlapping targets after filtering. "
+                "Try lowering the minimum targets per TF or using a prior network with more gene overlap."
+            )
         activity_scores_df.sort_index(axis=1, inplace=True)
         pvalues_df.sort_index(axis=1, inplace=True)
 

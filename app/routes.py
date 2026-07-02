@@ -1,7 +1,9 @@
 import io
 import os
+import re
 import uuid
 from datetime import datetime
+from urllib.parse import urlsplit
 
 import numpy as np
 import pandas as pd
@@ -60,6 +62,88 @@ BUILT_IN_PRIOR_FILES = {
     "dorothea.tsv": "DoRothEA",
 }
 WEIGHT_TYPE_OPTIONS = [weight_type.value for weight_type in WeightType]
+USERNAME_RE = re.compile(r"^[A-Za-z0-9_.-]{3,64}$")
+ALLOWED_TABULAR_FILE_EXTENSIONS = (".csv", ".tsv", ".txt")
+UPLOAD_FILE_TYPES = {"Gene Expression", "Prior Data", "Metadata", "2D Layout", "Other"}
+
+
+def _is_safe_next_url(target):
+    if not target:
+        return False
+    parsed = urlsplit(target)
+    return not parsed.scheme and not parsed.netloc and target.startswith("/")
+
+
+def _path_is_within(path, base_dir):
+    try:
+        return os.path.commonpath([os.path.abspath(base_dir), os.path.abspath(path)]) == os.path.abspath(base_dir)
+    except (TypeError, ValueError):
+        return False
+
+
+def _resolve_selected_user_file(
+    filename,
+    user_id,
+    user_files_by_name,
+    label,
+    expected_type=None,
+    allowed_extensions=None,
+):
+    file_info = user_files_by_name.get(filename)
+    if not file_info:
+        raise ValueError(f"Please select a valid {label} file.")
+
+    if expected_type and file_info.get("file_type") != expected_type:
+        raise ValueError(f"The selected {label} file has the wrong file type.")
+
+    if allowed_extensions and not filename.lower().endswith(allowed_extensions):
+        raise ValueError(f"The selected {label} file has an unsupported extension.")
+
+    return get_file_path(filename, user_id)
+
+
+def _parse_int_form(field_name, label, default=None, min_value=None, max_value=None):
+    raw_value = request.form.get(field_name)
+    if raw_value in (None, ""):
+        value = default
+    else:
+        try:
+            value = int(raw_value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{label} must be an integer.") from exc
+
+    if value is None:
+        return None
+    if min_value is not None and value < min_value:
+        raise ValueError(f"{label} must be at least {min_value}.")
+    if max_value is not None and value > max_value:
+        raise ValueError(f"{label} must be at most {max_value}.")
+    return value
+
+
+def _parse_float_form(field_name, label, default=None, min_value=None, max_value=None):
+    raw_value = request.form.get(field_name)
+    if raw_value in (None, ""):
+        value = default
+    else:
+        try:
+            value = float(raw_value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{label} must be a number.") from exc
+
+    if value is None:
+        return None
+    if min_value is not None and value < min_value:
+        raise ValueError(f"{label} must be at least {min_value}.")
+    if max_value is not None and value > max_value:
+        raise ValueError(f"{label} must be at most {max_value}.")
+    return value
+
+
+def _json_safe_number(value):
+    if value is None or pd.isna(value):
+        return None
+    return float(value)
 
 
 # --- Jinja Filter for Datetime Formatting ---
@@ -217,6 +301,8 @@ def upload_data():
         file = request.files["data_file"]
         description = request.form.get("description", "").strip()
         file_type = request.form.get("file_type", "Other")  # Default to 'Other'
+        if file_type not in UPLOAD_FILE_TYPES:
+            file_type = "Other"
 
         if file.filename == "":
             flash("No file selected for upload.", "error")
@@ -225,6 +311,9 @@ def upload_data():
         if file and allowed_file(file.filename):
             original_filename = file.filename
             filename = secure_filename(original_filename)
+            if not filename:
+                flash("The selected file has an invalid filename.", "error")
+                return redirect(url_for("main_routes.index"))
 
             # --- Decide if QC should be run ---
             should_run_qc = False
@@ -379,6 +468,13 @@ def delete_data(filename):
                 return redirect(url_for("main_routes.index"))
 
         try:
+            user_data_storage_path = get_user_specific_data_path(current_user.id)
+            if not user_data_storage_path or not _path_is_within(
+                file_path_on_disk, user_data_storage_path
+            ):
+                flash("File path is outside your upload directory. Deletion denied.", "error")
+                return redirect(url_for("main_routes.index"))
+
             if os.path.exists(file_path_on_disk):
                 os.remove(file_path_on_disk)
                 current_app.logger.info(
@@ -459,6 +555,17 @@ def create_analysis():
             )
             return redirect(url_for("main_routes.create_analysis_page"))
 
+        current_user_node = all_users_data.setdefault(
+            current_user.id,
+            {"password": "HASH_PLACEHOLDER", "files": [], "analyses": []},
+        )
+        if "analyses" not in current_user_node:
+            current_user_node["analyses"] = []
+        user_files_by_name = {
+            file_info.get("filename"): file_info
+            for file_info in current_user_node.get("files", [])
+        }
+
         # Gene Expression Data
         have_h5ad = request.form.get("have_h5ad") == "on"
         selected_h5ad_file = request.form.get("selected_h5ad_file", "")
@@ -470,7 +577,6 @@ def create_analysis():
             else "auto"
         )
         metadata_file = request.form.get("metadata_file", "")
-        ignore_zeros = request.form.get("ignore_zeros") == "on"
         prior_data_file = request.form.get("prior_data_file", "causalpath.tsv")
         weight_type = request.form.get("weight_type", WeightType.UNIFORM.value)
         try:
@@ -487,17 +593,23 @@ def create_analysis():
         data_filtering = {}
         if request.form.get("filter_cells") == "on":
             data_filtering["filter_cells"] = True
-            data_filtering["min_genes"] = request.form.get("min_genes", type=int)
+            data_filtering["min_genes"] = _parse_int_form(
+                "min_genes", "Minimum genes per cell", min_value=0
+            )
         if request.form.get("filter_genes") == "on":
             data_filtering["filter_genes"] = True
-            data_filtering["min_cells"] = request.form.get("min_cells", type=int)
+            data_filtering["min_cells"] = _parse_int_form(
+                "min_cells", "Minimum cells per gene", min_value=0
+            )
         if request.form.get("qc_filter") == "on":
             data_filtering["qc_filter"] = True
-            data_filtering["max_mt_pct"] = request.form.get("max_mt_pct", type=int)
+            data_filtering["max_mt_pct"] = _parse_int_form(
+                "max_mt_pct", "Maximum mitochondrial percentage", min_value=0, max_value=100
+            )
         if request.form.get("data_normalize") == "on":
             data_filtering["data_normalize"] = True
-            data_filtering["data_normalize_value"] = request.form.get(
-                "data_normalize_value", type=int
+            data_filtering["data_normalize_value"] = _parse_int_form(
+                "data_normalize_value", "Normalization target", min_value=1
             )
         if request.form.get("log_transform") == "on":
             data_filtering["log_transform"] = True
@@ -505,41 +617,86 @@ def create_analysis():
         # UMAP Parameters (only relevant if not have_2d_layout)
         umap_parameters = None
         if not have_2d_layout:
+            metric = request.form.get("metric", "euclidean")
+            if metric not in {"euclidean", "cosine"}:
+                flash("Please select a valid distance metric.", "error")
+                return redirect(url_for("main_routes.create_analysis_page"))
             umap_parameters = {
-                "pca_components": request.form.get(
-                    "pca_components", default=20, type=int
+                "pca_components": _parse_int_form(
+                    "pca_components", "Principal components", default=20, min_value=2
                 ),
-                "n_neighbors": request.form.get("n_neighbors", default=15, type=int),
-                "min_dist": request.form.get("min_dist", default=0.3, type=float),
-                "metric": request.form.get("metric", default="euclidean"),
-                "random_state": request.form.get("random_state", type=int, default=0),
+                "n_neighbors": _parse_int_form(
+                    "n_neighbors", "Neighbors", default=15, min_value=2
+                ),
+                "min_dist": _parse_float_form(
+                    "min_dist", "Minimum distance", default=0.3, min_value=0, max_value=1
+                ),
+                "metric": metric,
+                "random_state": _parse_int_form(
+                    "random_state", "Random state", default=0, min_value=0
+                ),
             }
 
         # Gene Expression File Validation
+        h5ad_filepath = None
+        gene_exp_filepath = None
+        metadata_filepath = None
         if have_h5ad:
             if not selected_h5ad_file or selected_h5ad_file == "select-h5ad-file":
                 flash("Please select a .h5ad file.", "error")
                 return redirect(url_for("main_routes.create_analysis_page"))
+            h5ad_filepath = _resolve_selected_user_file(
+                selected_h5ad_file,
+                current_user.id,
+                user_files_by_name,
+                ".h5ad",
+                expected_type="h5ad File",
+                allowed_extensions=(".h5ad",),
+            )
         else:
             if not gene_exp_file or gene_exp_file == "select-gene-exp-file":
                 flash("Please select a gene expression file.", "error")
                 return redirect(url_for("main_routes.create_analysis_page"))
+            gene_exp_filepath = _resolve_selected_user_file(
+                gene_exp_file,
+                current_user.id,
+                user_files_by_name,
+                "gene expression",
+                expected_type="Gene Expression",
+                allowed_extensions=ALLOWED_TABULAR_FILE_EXTENSIONS,
+            )
+            if metadata_file and metadata_file != "select-metadata-file":
+                metadata_filepath = _resolve_selected_user_file(
+                    metadata_file,
+                    current_user.id,
+                    user_files_by_name,
+                    "metadata",
+                    expected_type="Metadata",
+                    allowed_extensions=ALLOWED_TABULAR_FILE_EXTENSIONS,
+                )
 
         # Validate gene expression metadata file if provided
         metadata_cols = []
         # 2D Layout File Validation
+        layout_filepath = None
         if have_2d_layout:
             if not layout_file_2d:
                 flash("Please select a 2D layout file.", "error")
                 return redirect(url_for("main_routes.create_analysis_page"))
-
-        current_user_node = all_users_data.setdefault(
-            current_user.id,
-            {"password": "HASH_PLACEHOLDER", "files": [], "analyses": []},
-        )
-
-        if "analyses" not in current_user_node:
-            current_user_node["analyses"] = []
+            layout_filepath = _resolve_selected_user_file(
+                layout_file_2d,
+                current_user.id,
+                user_files_by_name,
+                "2D layout",
+                expected_type="2D Layout",
+                allowed_extensions=ALLOWED_TABULAR_FILE_EXTENSIONS,
+            )
+            try:
+                read_layout_columns(layout_filepath, ["X_umap1", "X_umap2", "Cluster"])
+            except Exception as exc:
+                raise ValueError(
+                    "The selected 2D layout must include X_umap1, X_umap2, and Cluster columns."
+                ) from exc
 
         analysis_id = str(uuid.uuid4())
         analysis_data_path = get_user_analysis_path(current_user.id, analysis_id)
@@ -552,10 +709,22 @@ def create_analysis():
         prior_data_dir = os.path.join(script_dir, "..", "prior_data")
         if prior_data_file in BUILT_IN_PRIOR_FILES:
             prior_data_filepath = os.path.join(prior_data_dir, prior_data_file)
+            if not os.path.exists(prior_data_filepath):
+                raise ValueError("The selected built-in prior file is not available.")
             prior_data_name = BUILT_IN_PRIOR_FILES[prior_data_file]
         else:
-            prior_data_filepath = get_file_path(prior_data_file, current_user.id)
+            prior_data_filepath = _resolve_selected_user_file(
+                prior_data_file,
+                current_user.id,
+                user_files_by_name,
+                "prior data",
+                expected_type="Prior Data",
+                allowed_extensions=ALLOWED_TABULAR_FILE_EXTENSIONS,
+            )
             prior_data_name = prior_data_file
+        min_number_of_targets = _parse_int_form(
+            "min_number_of_targets", "Minimum targets per TF", default=3, min_value=1
+        )
 
         new_analysis = {
             "id": analysis_id,
@@ -567,57 +736,20 @@ def create_analysis():
                 "gene_expression": {
                     "source": "h5ad" if have_h5ad else "SEPARATE_FILES",
                     "species": species,
-                    **(
-                        {
-                            "h5ad_filepath": get_file_path(
-                                selected_h5ad_file, current_user.id
-                            )
-                        }
-                        if have_h5ad and selected_h5ad_file
-                        else {}
-                    ),
-                    **(
-                        {
-                            "gene_exp_filepath": get_file_path(
-                                gene_exp_file, current_user.id
-                            )
-                        }
-                        if not have_h5ad and gene_exp_file
-                        else {}
-                    ),
-                    **(
-                        {
-                            "metadata_filepath": get_file_path(
-                                metadata_file, current_user.id
-                            )
-                        }
-                        if not have_h5ad
-                        and metadata_file
-                        and metadata_file != "select-metadata-file"
-                        else {}
-                    ),
-                    "ignore_zeros": ignore_zeros,
+                    **({"h5ad_filepath": h5ad_filepath} if h5ad_filepath else {}),
+                    **({"gene_exp_filepath": gene_exp_filepath} if gene_exp_filepath else {}),
+                    **({"metadata_filepath": metadata_filepath} if metadata_filepath else {}),
                 },
                 "prior_data": {
                     "prior_data_filepath": prior_data_filepath,
                     "prior_data_name": prior_data_name,
                     "weight_type": weight_type,
-                    "min_number_of_targets": request.form.get(
-                        "min_number_of_targets", type=int, default=3
-                    ),
+                    "min_number_of_targets": min_number_of_targets,
                 },
                 "data_filtering": data_filtering,
                 "layout": {
                     "source": "FILE" if have_2d_layout else "UMAP_GENERATED",
-                    **(
-                        {
-                            "layout_filepath": get_file_path(
-                                layout_file_2d, current_user.id
-                            )
-                        }
-                        if have_2d_layout and layout_file_2d
-                        else {}
-                    ),
+                    **({"layout_filepath": layout_filepath} if layout_filepath else {}),
                     **(
                         {"umap_settings": umap_parameters}
                         if not have_2d_layout and umap_parameters
@@ -627,7 +759,7 @@ def create_analysis():
             },
             **(
                 {"metadata_cols": metadata_cols}
-                if not have_h5ad and metadata_file
+                if not have_h5ad and metadata_filepath
                 else {}
             ),
         }
@@ -642,7 +774,6 @@ def create_analysis():
             analysis_id,
             new_analysis,
             have_2d_layout,
-            ignore_zeros,
             update_status_fn=update_analysis_status,
             run_analysis_fn=run_z_aggregate_analysis,
         )
@@ -652,6 +783,11 @@ def create_analysis():
             "success",
         )
         return redirect(url_for("main_routes.index"))
+
+    except ValueError as e:
+        current_app.logger.warning(f"Invalid analysis request: {e}")
+        flash(str(e), "error")
+        return redirect(url_for("main_routes.create_analysis_page"))
 
     except Exception as e:
         current_app.logger.error(f"Error in create_analysis: {e}")
@@ -852,9 +988,18 @@ def change_fdr_tf(analysis_id):
         user_analyses = all_users_data.get(current_user.id, {}).get("analyses", [])
         analysis = find_analysis_by_id(user_analyses, analysis_id)
 
-        fdr_level = float(request.json.get("fdr_level", 0.1))
-        tf_name = request.json.get("tf_name").strip()
-        plot_type = request.json.get("plot_type").strip()
+        payload = request.get_json(silent=True) or {}
+        try:
+            fdr_level = float(payload.get("fdr_level", 0.1))
+        except (TypeError, ValueError):
+            return jsonify({"error": "FDR level must be a number."}), 400
+        if not 0 < fdr_level <= 1:
+            return jsonify({"error": "FDR level must be between 0 and 1."}), 400
+
+        tf_name = (payload.get("tf_name") or "").strip()
+        plot_type = (payload.get("plot_type") or "").strip()
+        if not tf_name:
+            return jsonify({"error": "Transcription factor is required."}), 400
 
         if not analysis:
             current_app.logger.error(f"Analysis not found: analysis_id={analysis_id}")
@@ -864,6 +1009,8 @@ def change_fdr_tf(analysis_id):
                 f"Analysis not completed yet: analysis_id={analysis_id}"
             )
             return jsonify({"error": "Analysis is not completed yet."}), 400
+        if tf_name not in analysis.get("tfs", []):
+            return jsonify({"error": "Invalid transcription factor specified."}), 400
 
         pvalues_path = analysis.get("pvalues_path")
         layout_filepath = analysis.get("inputs").get("layout").get("layout_filepath")
@@ -909,14 +1056,17 @@ def change_fdr_tf(analysis_id):
             return jsonify({"error": "Invalid plot type specified."}), 400
         x_col, y_col, _ = plot_columns
         plot_df = read_layout_columns(layout_filepath, [x_col, y_col])
-        pvalues_df_tf = pd.read_parquet(
-            pvalues_path, use_threads=True, columns=[tf_name]
-        )
-        activity_scores_tf = pd.read_parquet(
-            activity_scores_path, use_threads=True, columns=[tf_name]
-        )
+        try:
+            pvalues_df_tf = pd.read_parquet(
+                pvalues_path, use_threads=True, columns=[tf_name]
+            )
+            activity_scores_tf = pd.read_parquet(
+                activity_scores_path, use_threads=True, columns=[tf_name]
+            )
+        except (KeyError, ValueError):
+            return jsonify({"error": "Invalid transcription factor specified."}), 400
 
-        corrected_pvalues, reject, p_value_thresholds = bh_fdr_correction(
+        _, reject, p_value_thresholds = bh_fdr_correction(
             pvalues_df_tf, fdr_level
         )
 
@@ -936,7 +1086,7 @@ def change_fdr_tf(analysis_id):
             "data": traces,
             "layout": layout,
             "fdr_level": fdr_level,
-            "p_value_threshold": p_value_thresholds.iloc[0],
+            "p_value_threshold": _json_safe_number(p_value_thresholds.get(tf_name)),
         }
         return jsonify(graph_data), 200
 
@@ -956,9 +1106,18 @@ def change_pvalue_threshold_tf(analysis_id):
         user_analyses = all_users_data.get(current_user.id, {}).get("analyses", [])
         analysis = find_analysis_by_id(user_analyses, analysis_id)
 
-        pvalue_threshold = float(request.json.get("pvalue_threshold"))
-        tf_name = request.json.get("tf_name").strip()
-        plot_type = request.json.get("plot_type").strip()
+        payload = request.get_json(silent=True) or {}
+        try:
+            pvalue_threshold = float(payload.get("pvalue_threshold"))
+        except (TypeError, ValueError):
+            return jsonify({"error": "P-value threshold must be a number."}), 400
+        if not 0 <= pvalue_threshold <= 1:
+            return jsonify({"error": "P-value threshold must be between 0 and 1."}), 400
+
+        tf_name = (payload.get("tf_name") or "").strip()
+        plot_type = (payload.get("plot_type") or "").strip()
+        if not tf_name:
+            return jsonify({"error": "Transcription factor is required."}), 400
 
         if not analysis:
             current_app.logger.error(f"Analysis not found: analysis_id={analysis_id}")
@@ -968,6 +1127,8 @@ def change_pvalue_threshold_tf(analysis_id):
                 f"Analysis not completed yet: analysis_id={analysis_id}"
             )
             return jsonify({"error": "Analysis is not completed yet."}), 400
+        if tf_name not in analysis.get("tfs", []):
+            return jsonify({"error": "Invalid transcription factor specified."}), 400
 
         pvalues_path = analysis.get("pvalues_path")
         layout_filepath = analysis.get("inputs").get("layout").get("layout_filepath")
@@ -1013,15 +1174,17 @@ def change_pvalue_threshold_tf(analysis_id):
             return jsonify({"error": "Invalid plot type specified."}), 400
         x_col, y_col, _ = plot_columns
         plot_df = read_layout_columns(layout_filepath, [x_col, y_col])
-        pvalues_df_tf = pd.read_parquet(
-            pvalues_path, use_threads=True, columns=[tf_name]
-        )
-        activity_scores_tf = pd.read_parquet(
-            activity_scores_path, use_threads=True, columns=[tf_name]
-        )
+        try:
+            pvalues_df_tf = pd.read_parquet(
+                pvalues_path, use_threads=True, columns=[tf_name]
+            )
+            activity_scores_tf = pd.read_parquet(
+                activity_scores_path, use_threads=True, columns=[tf_name]
+            )
+        except (KeyError, ValueError):
+            return jsonify({"error": "Invalid transcription factor specified."}), 400
         fdr = estimate_fdr_for_gene(pvalues_df_tf, tf_name, pvalue_threshold)
 
-        pvalues_df_tf = pvalues_df_tf.dropna()
         reject_mask = pvalues_df_tf < pvalue_threshold
         reject = reject_mask.where(pvalues_df_tf.notna())
         reject = reject.astype("boolean")
@@ -1041,7 +1204,7 @@ def change_pvalue_threshold_tf(analysis_id):
         graph_data = {
             "data": traces,
             "layout": layout,
-            "fdr_level": fdr,
+            "fdr_level": _json_safe_number(fdr),
             "p_value_threshold": pvalue_threshold,
         }
         return jsonify(graph_data), 200
@@ -1132,6 +1295,16 @@ def delete_analysis(analysis_id):
         analysis_data_path = analysis_to_delete.get("results_path")
         if analysis_data_path and os.path.exists(analysis_data_path):
             try:
+                user_data_storage_path = get_user_specific_data_path(current_user.id)
+                if not user_data_storage_path or not _path_is_within(
+                    analysis_data_path, os.path.join(user_data_storage_path, "analyses")
+                ):
+                    flash(
+                        "Analysis path is outside your analysis directory. Deletion denied.",
+                        "error",
+                    )
+                    return redirect(url_for("main_routes.index"))
+
                 shutil.rmtree(
                     analysis_data_path
                 )  # Deletes the directory and all its contents
@@ -1174,8 +1347,19 @@ def signup():
             flash("All fields are required.", "error")
             return render_template("signup.html")  # Re-render form with error
 
-        if " " in username:  # Example validation
-            flash("Username cannot contain spaces.", "error")
+        if not USERNAME_RE.fullmatch(username):
+            flash(
+                "Username must be 3-64 characters and use only letters, numbers, dots, underscores, or hyphens.",
+                "error",
+            )
+            return render_template("signup.html")
+
+        if secure_filename(username) != username:
+            flash("Username contains unsupported path characters.", "error")
+            return render_template("signup.html")
+
+        if len(password) < 8:
+            flash("Password must be at least 8 characters.", "error")
             return render_template("signup.html")
 
         if password != confirm_password:
@@ -1225,6 +1409,8 @@ def login():
             login_user(user_obj)  # Flask-Login handles session
             flash("Logged in successfully!", "success")
             next_page = request.args.get("next")
+            if not _is_safe_next_url(next_page):
+                next_page = None
             return redirect(next_page or url_for("main_routes.index"))
         else:
             flash("Invalid username or password.", "error")
@@ -1233,7 +1419,7 @@ def login():
     return render_template("login.html")
 
 
-@auth_bp.route("/logout")
+@auth_bp.route("/logout", methods=["POST"])
 @login_required  # Ensure user is logged in to log out
 def logout():
     logout_user()  # Clears user session

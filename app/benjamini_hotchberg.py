@@ -4,7 +4,7 @@ from statsmodels.stats.multitest import multipletests
 
 
 def bh_fdr_correction(p_value_df: pd.DataFrame, alpha: float) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
-    p_value_df.dropna(axis=1, how="all", inplace=True)
+    p_value_df = p_value_df.dropna(axis=1, how="all")
 
     df_adjusted_pvals = pd.DataFrame(index=p_value_df.index, columns=p_value_df.columns, dtype=float)
     df_reject_status = pd.DataFrame(index=p_value_df.index, columns=p_value_df.columns, dtype="boolean")
