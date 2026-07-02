@@ -9,7 +9,7 @@
     <div class="mb-4 flex flex-col gap-3 border-b border-gray-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
         <div class="min-w-0">
             <div class="flex flex-wrap items-center gap-3">
-                <h1 class="truncate text-xl font-semibold text-gray-900">{{ analysis.name }}</h1>
+                <h1 class="truncate text-lg font-semibold text-gray-900">{{ analysis.name }}</h1>
                 <span class="status-pill
                     {% if analysis.status == 'Completed' %} bg-green-100 text-green-800
                     {% elif analysis.status == 'Failed' %} bg-red-100 text-red-800
@@ -25,12 +25,12 @@
                     More Info
                 </button>
             </div>
-            <p class="muted-help mt-1">Created {{ analysis.created_at | format_datetime }}</p>
+            <p class="muted-help font-mono mt-1">{{ analysis.created_at | format_datetime }}</p>
         </div>
 
         <a href="{{ url_for('main_routes.index') }}" class="btn-secondary">
-            <svg xmlns="http://www.w3.org/2000/svg" class="mr-1 h-4 w-4" fill="none"
-                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="mr-1 h-4 w-4" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
             </svg>
             Back to Home
@@ -38,8 +38,7 @@
     </div>
 
     <!-- Modal -->
-    <div id="more-info-modal"
-        class="fixed inset-0 z-50 flex hidden items-center justify-center bg-black/45 p-4"
+    <div id="more-info-modal" class="fixed inset-0 z-50 flex hidden items-center justify-center bg-black/45 p-4"
         aria-modal="true" role="dialog">
         <div class="app-card relative max-h-[85vh] w-full max-w-4xl overflow-hidden">
             <div class="flex items-start justify-between border-b border-gray-200 px-5 py-4">
@@ -71,7 +70,8 @@
                             </div>
                             <div class="flex justify-between gap-4">
                                 <dt class="text-gray-500">Created</dt>
-                                <dd class="text-right font-medium text-gray-900">{{ analysis.created_at | format_datetime }}</dd>
+                                <dd class="text-right font-medium text-gray-900">{{ analysis.created_at |
+                                    format_datetime }}</dd>
                             </div>
                         </dl>
                     </section>
@@ -82,17 +82,20 @@
                             {% if analysis.inputs.gene_expression.source == "h5ad" %}
                             <div>
                                 <dt class="text-gray-500">h5ad File</dt>
-                                <dd class="mt-1 break-words font-medium text-gray-900">{{ analysis.inputs.gene_expression.h5ad_filepath | basename }}</dd>
+                                <dd class="mt-1 break-words font-medium text-gray-900">{{
+                                    analysis.inputs.gene_expression.h5ad_filepath | basename }}</dd>
                             </div>
                             {% else %}
                             <div>
                                 <dt class="text-gray-500">Gene Expression File</dt>
-                                <dd class="mt-1 break-words font-medium text-gray-900">{{ analysis.inputs.gene_expression.gene_exp_filepath | basename }}</dd>
+                                <dd class="mt-1 break-words font-medium text-gray-900">{{
+                                    analysis.inputs.gene_expression.gene_exp_filepath | basename }}</dd>
                             </div>
                             {% if analysis.inputs.gene_expression.metadata_filepath %}
                             <div>
                                 <dt class="text-gray-500">Metadata File</dt>
-                                <dd class="mt-1 break-words font-medium text-gray-900">{{ analysis.inputs.gene_expression.metadata_filepath | basename }}</dd>
+                                <dd class="mt-1 break-words font-medium text-gray-900">{{
+                                    analysis.inputs.gene_expression.metadata_filepath | basename }}</dd>
                             </div>
                             {% endif %}
                             {% endif %}
@@ -100,7 +103,8 @@
                     </section>
 
                     {% set prior_data = analysis.inputs.get('prior_data', {}) %}
-                    {% set prior_name = prior_data.get('prior_data_name') or prior_data.get('prior_data_filepath') or 'N/A' %}
+                    {% set prior_name = prior_data.get('prior_data_name') or prior_data.get('prior_data_filepath') or
+                    'N/A' %}
                     <section class="rounded-md border border-gray-200 bg-white p-4">
                         <h3 class="mb-3 text-sm font-semibold text-gray-900">Prior Data</h3>
                         <dl class="grid gap-2 text-sm sm:grid-cols-3">
@@ -129,30 +133,35 @@
                             {% if analysis.inputs.data_filtering.filter_cells %}
                             <div class="rounded-md bg-gray-50 px-3 py-2">
                                 <dt class="text-gray-500">Filter Cells</dt>
-                                <dd class="mt-1 font-medium text-gray-900">{{ analysis.inputs.data_filtering.min_genes }} genes</dd>
+                                <dd class="mt-1 font-medium text-gray-900">{{ analysis.inputs.data_filtering.min_genes
+                                    }} genes</dd>
                             </div>
                             {% endif %}
                             {% if analysis.inputs.data_filtering.filter_genes %}
                             <div class="rounded-md bg-gray-50 px-3 py-2">
                                 <dt class="text-gray-500">Filter Genes</dt>
-                                <dd class="mt-1 font-medium text-gray-900">{{ analysis.inputs.data_filtering.min_cells }} cells</dd>
+                                <dd class="mt-1 font-medium text-gray-900">{{ analysis.inputs.data_filtering.min_cells
+                                    }} cells</dd>
                             </div>
                             {% endif %}
                             {% if analysis.inputs.data_filtering.qc_filter %}
                             <div class="rounded-md bg-gray-50 px-3 py-2">
                                 <dt class="text-gray-500">Mitochondrial %</dt>
-                                <dd class="mt-1 font-medium text-gray-900">&lt; {{ analysis.inputs.data_filtering.max_mt_pct }}%</dd>
+                                <dd class="mt-1 font-medium text-gray-900">&lt; {{
+                                    analysis.inputs.data_filtering.max_mt_pct }}%</dd>
                             </div>
                             {% endif %}
                             {% if analysis.inputs.data_filtering.data_normalize %}
                             <div class="rounded-md bg-gray-50 px-3 py-2">
                                 <dt class="text-gray-500">Normalize</dt>
-                                <dd class="mt-1 font-medium text-gray-900">{{ analysis.inputs.data_filtering.data_normalize_value }} per cell</dd>
+                                <dd class="mt-1 font-medium text-gray-900">{{
+                                    analysis.inputs.data_filtering.data_normalize_value }} per cell</dd>
                             </div>
                             {% endif %}
                             <div class="rounded-md bg-gray-50 px-3 py-2">
                                 <dt class="text-gray-500">Log Transform</dt>
-                                <dd class="mt-1 font-medium text-gray-900">{{ analysis.inputs.data_filtering.log_transform }}</dd>
+                                <dd class="mt-1 font-medium text-gray-900">{{
+                                    analysis.inputs.data_filtering.log_transform }}</dd>
                             </div>
                         </dl>
                     </section>
@@ -167,30 +176,37 @@
                             </div>
                             <div class="rounded-md bg-gray-50 px-3 py-2">
                                 <dt class="text-gray-500">PCA Components</dt>
-                                <dd class="mt-1 font-medium text-gray-900">{{ analysis.inputs.layout.umap_settings.pca_components }}</dd>
+                                <dd class="mt-1 font-medium text-gray-900">{{
+                                    analysis.inputs.layout.umap_settings.pca_components }}</dd>
                             </div>
                             <div class="rounded-md bg-gray-50 px-3 py-2">
                                 <dt class="text-gray-500">n_neighbors</dt>
-                                <dd class="mt-1 font-medium text-gray-900">{{ analysis.inputs.layout.umap_settings.n_neighbors }}</dd>
+                                <dd class="mt-1 font-medium text-gray-900">{{
+                                    analysis.inputs.layout.umap_settings.n_neighbors }}</dd>
                             </div>
                             <div class="rounded-md bg-gray-50 px-3 py-2">
                                 <dt class="text-gray-500">min_dist</dt>
-                                <dd class="mt-1 font-medium text-gray-900">{{ analysis.inputs.layout.umap_settings.min_dist }}</dd>
+                                <dd class="mt-1 font-medium text-gray-900">{{
+                                    analysis.inputs.layout.umap_settings.min_dist }}</dd>
                             </div>
                             <div class="rounded-md bg-gray-50 px-3 py-2">
                                 <dt class="text-gray-500">metric</dt>
-                                <dd class="mt-1 font-medium text-gray-900">{{ analysis.inputs.layout.umap_settings.metric }}</dd>
+                                <dd class="mt-1 font-medium text-gray-900">{{
+                                    analysis.inputs.layout.umap_settings.metric }}</dd>
                             </div>
-                            {% if analysis.inputs.layout.umap_settings.random_state and analysis.inputs.layout.umap_settings.random_state != 0 %}
+                            {% if analysis.inputs.layout.umap_settings.random_state and
+                            analysis.inputs.layout.umap_settings.random_state != 0 %}
                             <div class="rounded-md bg-gray-50 px-3 py-2">
                                 <dt class="text-gray-500">random_state</dt>
-                                <dd class="mt-1 font-medium text-gray-900">{{ analysis.inputs.layout.umap_settings.random_state }}</dd>
+                                <dd class="mt-1 font-medium text-gray-900">{{
+                                    analysis.inputs.layout.umap_settings.random_state }}</dd>
                             </div>
                             {% endif %}
                             {% else %}
                             <div class="sm:col-span-2">
                                 <dt class="text-gray-500">Source</dt>
-                                <dd class="mt-1 break-words font-medium text-gray-900">{{ analysis.inputs.gene_expression.gene_exp_filepath }}</dd>
+                                <dd class="mt-1 break-words font-medium text-gray-900">{{
+                                    analysis.inputs.gene_expression.gene_exp_filepath }}</dd>
                             </div>
                             {% endif %}
                         </dl>
@@ -204,7 +220,7 @@
         <!-- Plot Display Area -->
         <section class="app-card flex min-h-0 flex-col overflow-hidden">
             <div class="flex flex-shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3">
-                <h2 id="plot-title" class="section-title">UMAP Plot</h2>
+                <p id="plot-title" class="font-sm font-mono section-title">UMAP Plot</p>
                 <p id="total-cells" class="font-mono text-xs font-semibold text-gray-500"></p>
             </div>
             <div id="umap-plot-container"
@@ -214,140 +230,165 @@
                     <div class="h-12 w-12 animate-spin rounded-full border-8 border-gray-200 border-t-blue-500"></div>
                 </div>
             </div>
-            <div class="flex flex-shrink-0 flex-col gap-1 border-t border-gray-200 px-4 py-3 text-xs text-gray-500 sm:flex-row sm:items-center sm:justify-between">
-                <p>
-                    <span class="font-semibold text-gray-700">Status:</span>
-                    <span class="{% if analysis.status == 'Completed' %} text-green-700 {% elif analysis.status == 'Failed' %} text-red-700 {% elif analysis.status == 'Running' %} text-blue-700 {% else %} text-yellow-700 {% endif %}">
-                        {{ analysis.status }}
-                    </span>
-                </p>
-                <p><span class="font-semibold text-gray-700">Created:</span> {{ analysis.created_at | format_datetime }}</p>
-            </div>
         </section>
 
         <!-- Configuration Panel -->
-        <aside class="app-card flex flex-col self-start overflow-hidden xl:sticky xl:top-5">
-            <div class="border-b border-gray-200 px-4 py-3">
-                <h2 class="section-title">Plot Configuration</h2>
-                <p class="muted-help mt-1">Tune the displayed plot without leaving this view.</p>
-            </div>
-            <form id="plot-config-form" class="flex flex-col gap-4 p-4">
-                <div>
-                    <label for="plot-type" class="form-label">Plot Type</label>
-                    <select id="plot-type" name="plot_type" class="form-control">
-                        <option value="umap_plot">UMAP</option>
-                        <option value="pca_plot">PCA</option>
-                    </select>
-                </div>
-
-                <div class="rounded-md border border-gray-200 bg-gray-50 p-3">
-                    <label for="color-by" class="form-label">Color By</label>
-                    <select id="color-by" name="color_by" class="form-control">
-                        <option value="select_cluster_type">---Select Cluster Type---</option>
-                        <option value="metadata_columns">Metadata Columns</option>
-                        <option value="tf_activity">TF Activity</option>
-                        <option value="gene_expression">Gene Expression Level</option>
-                    </select>
-
-                    <div id="metadata-column-selection-div" class="mt-3 hidden">
-                        <label for="metadata-column-name" class="form-label">Metadata Column</label>
-                        <select id="metadata-column-name" name="metadata_column_name" class="form-control">
-                            <option value="select_metadata_column">---Select Metadata Column---</option>
-                            {% for column in analysis.metadata_cols %}
-                            <option value="{{ column }}">{{ column }}</option>
-                            {% endfor %}
-                        </select>
+        <aside class="self-start xl:sticky xl:top-5">
+            <form id="plot-config-form" class="flex flex-col gap-4">
+                <section class="app-card overflow-hidden" aria-labelledby="analysis-settings-title">
+                    <div class="border-b border-gray-200 px-4 py-3">
+                        <h2 id="analysis-settings-title" class="section-title">Analysis Settings</h2>
                     </div>
+                    <div class="flex flex-col gap-4 p-4">
+                        <div>
+                            <label for="plot-type" class="form-label">Plot Type</label>
+                            <select id="plot-type" name="plot_type" class="form-control">
+                                <option value="umap_plot">UMAP</option>
+                                <option value="pca_plot">PCA</option>
+                            </select>
+                        </div>
 
-                    <div id="tf-selection-div" class="mt-3 hidden">
-                        <label for="tf-name-select" class="form-label">TF Name</label>
-                        <select id="tf-name-select" name="tf_name_select" class="form-control">
-                            <option value="select_tf">---Select Transcription Factor---</option>
-                            {% for tf in analysis.tfs %}
-                            <option value="{{ tf }}">{{ tf }}</option>
-                            {% endfor %}
-                        </select>
+                        <div>
+                            <label for="color-by" class="form-label">Color By</label>
+                            <select id="color-by" name="color_by" class="form-control">
+                                <option value="select_cluster_type">---Select Cluster Type---</option>
+                                <option value="metadata_columns">Metadata Columns</option>
+                                <option value="tf_activity">TF Activity</option>
+                                <option value="gene_expression">Gene Expression Level</option>
+                            </select>
+
+                            <div id="metadata-column-selection-div" class="mt-3 hidden">
+                                <label for="metadata-column-name" class="form-label">Metadata Column</label>
+                                <select id="metadata-column-name" name="metadata_column_name" class="form-control">
+                                    <option value="select_metadata_column">---Select Metadata Column---</option>
+                                    {% for column in analysis.metadata_cols %}
+                                    <option value="{{ column }}">{{ column }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div id="tf-selection-div" class="mt-3 hidden">
+                                <label for="tf-name-select" class="form-label">TF Name</label>
+                                <select id="tf-name-select" name="tf_name_select" class="form-control">
+                                    <option value="select_tf">---Select Transcription Factor---</option>
+                                    {% for tf in analysis.tfs %}
+                                    <option value="{{ tf }}">{{ tf }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div id="gene-entry-div" class="mt-3 hidden">
+                                <label for="gene-entry-input" class="form-label">Gene</label>
+                                <input type="text" id="gene-entry-input" name="gene_entry" class="form-control"
+                                    placeholder="Enter Gene Name" />
+                            </div>
+
+                            <div id="color-scale-selection-div" class="mt-3 hidden">
+                                <label for="color-scale-select" class="form-label">Color Scale</label>
+                                <select id="color-scale-select" name="color-scale-select" class="form-control">
+                                    <option value="Viridis">Viridis</option>
+                                    <option value="Plasma">Plasma</option>
+                                    <option value="Inferno">Inferno</option>
+                                    <option value="Cividis">Cividis</option>
+                                    <option value="RdBu">RdBu (diverging)</option>
+                                    <option value="Spectral">Spectral (diverging)</option>
+                                    <option value="Magma">Magma</option>
+                                    <option value="Hot">Hot</option>
+                                    <option value="Jet">Jet</option>
+                                    <option value="Rainbow">Rainbow</option>
+                                    <option value="Greys">Greys</option>
+                                </select>
+                                <p class="muted-help mt-1">Z-score values for gene expression intensity.</p>
+                            </div>
+                        </div>
+
+                        <div id="change-threshold-type-div" class="hidden border-t border-gray-200 pt-4">
+                            <p class="mb-2 text-sm font-semibold text-gray-800">Significance Threshold</p>
+
+                            <div class="space-y-3">
+                                <label for="fdr-correction-radio" class="flex items-center text-sm text-gray-700">
+                                    <input type="radio" id="fdr-correction-radio" name="threshold_type"
+                                        value="fdr_correction"
+                                        class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" checked />
+                                    <span class="ml-2">FDR Correction</span>
+                                </label>
+                                <input type="number" name="fdr-level" id="fdr-level" min="0.001" max="0.2" step="0.001"
+                                    class="form-control text-xs disabled:bg-gray-200 disabled:text-gray-600"
+                                    placeholder="e.g., 0.1" />
+
+                                <label for="p-value-threshold-radio" class="flex items-center text-sm text-gray-700">
+                                    <input type="radio" id="p-value-threshold-radio" name="threshold_type"
+                                        value="p_value_threshold"
+                                        class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" />
+                                    <span class="ml-2">P-Value Threshold</span>
+                                </label>
+                                <input type="number" name="p-val-threshold" id="p-val-threshold" max="1.0"
+                                    class="form-control text-xs disabled:bg-gray-200 disabled:text-gray-600"
+                                    placeholder="e.g., 0.0015" disabled />
+                            </div>
+                            <button type="button" id="apply-correction" class="btn-primary mt-3 w-full">
+                                Apply Threshold
+                            </button>
+                        </div>
                     </div>
+                </section>
 
-                    <div id="gene-entry-div" class="mt-3 hidden">
-                        <label for="gene-entry-input" class="form-label">Gene</label>
-                        <input type="text" id="gene-entry-input" name="gene_entry" class="form-control"
-                            placeholder="Enter Gene Name" />
+                <section class="app-card overflow-hidden" aria-labelledby="plot-settings-title">
+                    <div class="border-b border-gray-200 px-4 py-3">
+                        <h2 id="plot-settings-title" class="section-title">Plot Settings</h2>
                     </div>
+                    <div class="flex flex-col gap-4 p-4">
+                        <div>
+                            <div class="flex items-center justify-between gap-3">
+                                <label for="point-size" class="form-label mb-0">Point Size</label>
+                                <span id="point-size-value" class="font-mono text-xs text-gray-500">6</span>
+                            </div>
+                            <input type="range" id="point-size" name="point_size" min="1" max="20" step="0.5" value="6"
+                                class="mt-2 h-2 w-full cursor-pointer appearance-none rounded-sm bg-gray-300" />
+                        </div>
 
-                    <div id="color-scale-selection-div" class="mt-3 hidden">
-                        <label for="color-scale-select" class="form-label">Color Scale</label>
-                        <select id="color-scale-select" name="color-scale-select" class="form-control">
-                            <option value="Viridis">Viridis</option>
-                            <option value="Plasma">Plasma</option>
-                            <option value="Inferno">Inferno</option>
-                            <option value="Cividis">Cividis</option>
-                            <option value="RdBu">RdBu (diverging)</option>
-                            <option value="Spectral">Spectral (diverging)</option>
-                            <option value="Magma">Magma</option>
-                            <option value="Hot">Hot</option>
-                            <option value="Jet">Jet</option>
-                            <option value="Rainbow">Rainbow</option>
-                            <option value="Greys">Greys</option>
-                        </select>
-                        <p class="muted-help mt-1">Displays z-score values for gene expression intensity.</p>
+                        <div>
+                            <div class="flex items-center justify-between gap-3">
+                                <label for="opacity" class="form-label mb-0">Opacity</label>
+                                <span id="opacity-value" class="font-mono text-xs text-gray-500">0.5</span>
+                            </div>
+                            <input type="range" id="opacity" name="opacity" min="0.1" max="1" value="0.5" step="0.1"
+                                class="mt-2 h-2 w-full cursor-pointer appearance-none rounded-sm bg-gray-300" />
+                        </div>
+
+                        <div class="grid gap-2 border-t border-gray-200 pt-4">
+                            <label for="show-legend" class="flex items-center text-sm text-gray-700">
+                                <input id="show-legend" name="show_legend" type="checkbox" checked
+                                    class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                                <span class="ml-2">Show Legend</span>
+                            </label>
+                            <label for="show-grid" class="flex items-center text-sm text-gray-700">
+                                <input id="show-grid" name="show_grid" type="checkbox" checked
+                                    class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                                <span class="ml-2">Show Grid</span>
+                            </label>
+                            <label for="show-axes" class="flex items-center text-sm text-gray-700">
+                                <input id="show-axes" name="show_axes" type="checkbox" checked
+                                    class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                                <span class="ml-2">Show Axes</span>
+                            </label>
+                            <label for="lock-aspect" class="flex items-center text-sm text-gray-700">
+                                <input id="lock-aspect" name="lock_aspect" type="checkbox" checked
+                                    class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                                <span class="ml-2">Lock Aspect Ratio</span>
+                            </label>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 border-t border-gray-200 pt-4">
+                            <button type="button" id="reset-plot-style" class="btn-secondary w-full">
+                                Reset Style
+                            </button>
+                            <button type="button" id="download-plot-png" class="btn-primary w-full">
+                                Save PNG
+                            </button>
+                        </div>
                     </div>
-                </div>
-
-                <div id="change-threshold-type-div" class="hidden rounded-md border border-gray-200 bg-gray-50 p-3">
-                    <p class="mb-2 text-sm font-semibold text-gray-800">Significance Threshold</p>
-
-                    <div class="space-y-3">
-                        <label for="fdr-correction-radio" class="flex items-center text-sm text-gray-700">
-                            <input type="radio" id="fdr-correction-radio" name="threshold_type"
-                                value="fdr_correction"
-                                class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" checked />
-                            <span class="ml-2">FDR Correction</span>
-                        </label>
-                        <input type="number" name="fdr-level" id="fdr-level" min="0.001" max="0.2" step="0.001"
-                            class="form-control text-xs disabled:bg-gray-200 disabled:text-gray-600"
-                            placeholder="e.g., 0.1" />
-
-                        <label for="p-value-threshold-radio" class="flex items-center text-sm text-gray-700">
-                            <input type="radio" id="p-value-threshold-radio" name="threshold_type"
-                                value="p_value_threshold"
-                                class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" />
-                            <span class="ml-2">P-Value Threshold</span>
-                        </label>
-                        <input type="number" name="p-val-threshold" id="p-val-threshold" max="1.0"
-                            class="form-control text-xs disabled:bg-gray-200 disabled:text-gray-600"
-                            placeholder="e.g., 0.0015" disabled />
-                    </div>
-                    <button type="button" id="apply-correction" class="btn-primary mt-3 w-full">
-                        Apply Threshold
-                    </button>
-                </div>
-
-                <div class="rounded-md border border-gray-200 bg-gray-50 p-3">
-                    <div class="mb-3">
-                        <label for="point-size" class="form-label">Point Size</label>
-                        <input type="range" id="point-size" name="point_size" min="1" max="20" step="0.5" value="6"
-                            class="h-2 w-full cursor-pointer appearance-none rounded-sm bg-gray-300" />
-                        <span id="point-size-value" class="text-xs text-gray-500">6</span>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="opacity" class="form-label">Opacity</label>
-                        <input type="range" id="opacity" name="opacity" min="0.1" max="1" value="0.5" step="0.1"
-                            class="h-2 w-full cursor-pointer appearance-none rounded-sm bg-gray-300" />
-                        <span id="opacity-value" class="text-xs text-gray-500">0.5</span>
-                    </div>
-
-                    <label for="show-legend" class="flex items-center text-sm text-gray-700">
-                        <input id="show-legend" name="show_legend" type="checkbox" checked
-                            class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                        <span class="ml-2">Show Legend</span>
-                    </label>
-                </div>
-
-                <button type="submit" class="btn-primary w-full">
-                    Update Plot
-                </button>
+                </section>
             </form>
         </aside>
     </div>
@@ -355,7 +396,7 @@
     <script>
         window.analysis = {{ analysis | tojson }};
     </script>
-    <script src="{{ url_for('static', filename='js/view_analysis.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/view_analysis.js') }}?v=plot-customization-trimmed"></script>
 </div>
 
 {% endblock %}

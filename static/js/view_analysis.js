@@ -23,6 +23,11 @@ const pointSizeValue = document.getElementById("point-size-value");
 const opacitySlider = document.getElementById("opacity");
 const opacityValue = document.getElementById("opacity-value");
 const showLegendCheckbox = document.getElementById("show-legend");
+const showGridCheckbox = document.getElementById("show-grid");
+const showAxesCheckbox = document.getElementById("show-axes");
+const lockAspectCheckbox = document.getElementById("lock-aspect");
+const resetPlotStyleBtn = document.getElementById("reset-plot-style");
+const downloadPlotPngBtn = document.getElementById("download-plot-png");
 const fdrLevel = document.getElementById("fdr-level");
 const pValueThreshold = document.getElementById("p-val-threshold");
 const applyCorrectionBtn = document.getElementById("apply-correction");
@@ -41,12 +46,23 @@ const plotConfig = {
 	scrollZoom: false,
 };
 
+const defaultBooleanControls = {
+	showLegend: true,
+	showGrid: true,
+	showAxes: true,
+	lockAspect: true,
+};
+const defaultLegendLayout = {
+	x: 1,
+	y: 1,
+	xanchor: "right",
+	yanchor: "top",
+	orientation: "v",
+	traceorder: "normal",
+};
+
 function getPlotThemeLayout() {
 	return window.appTheme ? window.appTheme.getPlotlyLayout() : {};
-}
-
-function getPlotThemeRelayout() {
-	return window.appTheme ? window.appTheme.getPlotlyRelayout() : {};
 }
 
 function withPlotTheme(layout) {
@@ -64,8 +80,8 @@ function withPlotTheme(layout) {
 }
 
 function refreshScatterPlotTheme() {
-	if (!scatterPlotDiv || !scatterPlotDiv.data) return;
-	Plotly.relayout(scatterPlotDiv, getPlotThemeRelayout());
+	if (!currentRenderedData || !currentRenderedLayout) return;
+	renderPlot(currentRenderedData, withPlotTheme(currentRenderedLayout));
 }
 
 let plotRevision = 0;
@@ -74,6 +90,14 @@ let pendingResizeFrame = null;
 let pendingWheelZoomFrame = null;
 let pendingWheelRanges = null;
 let wheelZoomAttached = false;
+let currentHoverDisabledBySize = false;
+let currentAxisTitles = { x: "", y: "" };
+let currentRenderedData = null;
+let currentRenderedLayout = null;
+
+function isPlotReady() {
+	return Boolean(scatterPlotDiv && scatterPlotDiv._fullLayout && Array.isArray(scatterPlotDiv.data));
+}
 
 function toFloat32Array(values) {
 	if (!Array.isArray(values)) return values;
@@ -97,19 +121,114 @@ function getCurrentMarkerStyle() {
 	};
 }
 
-function scheduleMarkerStyleUpdate() {
+function getCurrentPlotAppearance() {
+	return {
+		marker: getCurrentMarkerStyle(),
+		showLegend: showLegendCheckbox ? showLegendCheckbox.checked : defaultBooleanControls.showLegend,
+		showGrid: showGridCheckbox ? showGridCheckbox.checked : defaultBooleanControls.showGrid,
+		showAxes: showAxesCheckbox ? showAxesCheckbox.checked : defaultBooleanControls.showAxes,
+		lockAspect: lockAspectCheckbox ? lockAspectCheckbox.checked : defaultBooleanControls.lockAspect,
+	};
+}
+
+function mergePlotAppearanceIntoLayout(layout, appearance = getCurrentPlotAppearance()) {
+	const showAxes = appearance.showAxes;
+	const showGrid = appearance.showGrid;
+
+	return {
+		...layout,
+		dragmode: "pan",
+		hovermode: currentHoverDisabledBySize ? false : "closest",
+		showlegend: appearance.showLegend,
+		legend: { ...(layout.legend || {}), ...defaultLegendLayout },
+		xaxis: {
+			...(layout.xaxis || {}),
+			title: showAxes ? currentAxisTitles.x : "",
+			showgrid: showGrid,
+			showline: showAxes,
+			showticklabels: showAxes,
+			zeroline: showAxes && showGrid,
+		},
+		yaxis: {
+			...(layout.yaxis || {}),
+			title: showAxes ? currentAxisTitles.y : "",
+			scaleanchor: appearance.lockAspect ? "x" : false,
+			scaleratio: appearance.lockAspect ? 1 : undefined,
+			showgrid: showGrid,
+			showline: showAxes,
+			showticklabels: showAxes,
+			zeroline: showAxes && showGrid,
+		},
+	};
+}
+
+function renderPlot(data, layout) {
+	currentRenderedData = data;
+	currentRenderedLayout = layout;
+
+	Plotly.react(scatterPlotDiv, data, layout, plotConfig)
+		.then(() => {
+			attachWheelZoom();
+			schedulePlotResize();
+		})
+		.catch((error) => {
+			console.error("Failed to render plot:", error);
+		});
+}
+
+function applyPlotAppearance() {
+	applyMarkerStyle();
+	applyPlotLayoutAppearance();
+}
+
+function applyMarkerStyle() {
+	if (!isPlotReady()) return;
+
+	const appearance = getCurrentPlotAppearance();
+	if (currentRenderedData) {
+		currentRenderedData = currentRenderedData.map((trace) => ({
+			...trace,
+			marker: {
+				...(trace.marker || {}),
+				size: appearance.marker.size,
+				opacity: appearance.marker.opacity,
+			},
+		}));
+	}
+
+	Plotly.restyle(scatterPlotDiv, {
+		"marker.size": appearance.marker.size,
+		"marker.opacity": appearance.marker.opacity,
+	});
+}
+
+function applyPlotLayoutAppearance() {
+	if (!currentRenderedData || !currentRenderedLayout) return;
+
+	const appearance = getCurrentPlotAppearance();
+	const nextLayout = mergePlotAppearanceIntoLayout(currentRenderedLayout, appearance);
+	renderPlot(currentRenderedData, withPlotTheme(nextLayout));
+}
+
+function schedulePlotUpdate(update) {
 	if (pendingMarkerStyleFrame !== null) return;
 
 	pendingMarkerStyleFrame = requestAnimationFrame(() => {
 		pendingMarkerStyleFrame = null;
-		if (!scatterPlotDiv || !scatterPlotDiv.data) return;
-
-		const markerStyle = getCurrentMarkerStyle();
-		Plotly.restyle(scatterPlotDiv, {
-			"marker.size": markerStyle.size,
-			"marker.opacity": markerStyle.opacity,
-		});
+		update();
 	});
+}
+
+function scheduleMarkerStyleUpdate() {
+	schedulePlotUpdate(applyMarkerStyle);
+}
+
+function schedulePlotLayoutUpdate() {
+	schedulePlotUpdate(applyPlotLayoutAppearance);
+}
+
+function schedulePlotAppearanceUpdate() {
+	schedulePlotUpdate(applyPlotAppearance);
 }
 
 function schedulePlotResize() {
@@ -117,7 +236,7 @@ function schedulePlotResize() {
 
 	pendingResizeFrame = requestAnimationFrame(() => {
 		pendingResizeFrame = null;
-		if (scatterPlotDiv) Plotly.Plots.resize(scatterPlotDiv);
+		if (isPlotReady()) Plotly.Plots.resize(scatterPlotDiv);
 	});
 }
 
@@ -165,14 +284,22 @@ function scheduleWheelZoomRelayout() {
 
 	pendingWheelZoomFrame = requestAnimationFrame(() => {
 		pendingWheelZoomFrame = null;
-		if (!pendingWheelRanges) return;
+		if (!pendingWheelRanges || !currentRenderedData || !currentRenderedLayout) return;
 
 		const ranges = pendingWheelRanges;
 		pendingWheelRanges = null;
-		Plotly.relayout(scatterPlotDiv, {
-			"xaxis.range": ranges.x,
-			"yaxis.range": ranges.y,
-		});
+		const nextLayout = {
+			...currentRenderedLayout,
+			xaxis: {
+				...(currentRenderedLayout.xaxis || {}),
+				range: ranges.x,
+			},
+			yaxis: {
+				...(currentRenderedLayout.yaxis || {}),
+				range: ranges.y,
+			},
+		};
+		renderPlot(currentRenderedData, nextLayout);
 	});
 }
 
@@ -208,6 +335,17 @@ function getAxisTitle(axis) {
 	return axis.title.text || "";
 }
 
+function resetPlotAppearanceControls() {
+	if (pointSizeSlider) pointSizeSlider.value = defaultPointSize;
+	if (opacitySlider) opacitySlider.value = defaultOpacity;
+	if (pointSizeValue) pointSizeValue.textContent = defaultPointSize;
+	if (opacityValue) opacityValue.textContent = defaultOpacity;
+	if (showLegendCheckbox) showLegendCheckbox.checked = defaultBooleanControls.showLegend;
+	if (showGridCheckbox) showGridCheckbox.checked = defaultBooleanControls.showGrid;
+	if (showAxesCheckbox) showAxesCheckbox.checked = defaultBooleanControls.showAxes;
+	if (lockAspectCheckbox) lockAspectCheckbox.checked = defaultBooleanControls.lockAspect;
+}
+
 function clearAllSelections() {
 	if (colorBySelect) colorBySelect.value = "select_cluster_type";
 	if (metadataColNameSelect) {
@@ -224,10 +362,7 @@ function clearAllSelections() {
 		geneEntryDiv.classList.add("hidden");
 		colorScaleSelectionDiv.classList.add("hidden");
 	}
-	if (pointSizeSlider) pointSizeSlider.value = defaultPointSize;
-	if (opacitySlider) opacitySlider.value = defaultOpacity;
-	if (pointSizeValue) pointSizeValue.textContent = defaultPointSize;
-	if (opacityValue) opacityValue.textContent = defaultOpacity;
+	resetPlotAppearanceControls();
 	if (fdrLevel) fdrLevel.value = "";
 	if (pValueThreshold) pValueThreshold.value = "";
 }
@@ -248,6 +383,18 @@ plotTypeSelect.addEventListener("change", function () {
 colorScaleSelectionDiv.addEventListener("change", function (e) {
 	console.log("ColorScaleSelectionDiv changed successfully.");
 	if (!scatterPlotDiv || !scatterPlotDiv.data) return;
+	if (currentRenderedData) {
+		currentRenderedData = currentRenderedData.map((trace, index) => {
+			if (index !== 0) return trace;
+			return {
+				...trace,
+				marker: {
+					...(trace.marker || {}),
+					colorscale: e.target.value,
+				},
+			};
+		});
+	}
 	Plotly.restyle(
 		scatterPlotDiv,
 		{
@@ -271,10 +418,40 @@ if (opacitySlider && opacityValue) {
 	});
 }
 
-if (showLegendCheckbox) {
-	showLegendCheckbox.addEventListener("change", function (e) {
-		if (!scatterPlotDiv || !scatterPlotDiv.data) return;
-		Plotly.relayout(scatterPlotDiv, { showlegend: e.target.checked });
+[
+	showLegendCheckbox,
+	showGridCheckbox,
+	showAxesCheckbox,
+	lockAspectCheckbox,
+].forEach((control) => {
+	if (control) control.addEventListener("change", schedulePlotLayoutUpdate);
+});
+
+if (resetPlotStyleBtn) {
+	resetPlotStyleBtn.addEventListener("click", function () {
+		resetPlotAppearanceControls();
+		schedulePlotAppearanceUpdate();
+	});
+}
+
+if (downloadPlotPngBtn) {
+	downloadPlotPngBtn.addEventListener("click", function () {
+		if (!isPlotReady()) return;
+		const sanitizeFilename = (value) =>
+			String(value || "analysis")
+				.trim()
+				.replace(/[^a-z0-9-_]+/gi, "-")
+				.replace(/^-+|-+$/g, "")
+				.toLowerCase();
+		const plotName = sanitizeFilename(plotTitle?.textContent) || "analysis-plot";
+		const analysisName = sanitizeFilename(window.analysis.name) || "analysis";
+		Plotly.downloadImage(scatterPlotDiv, {
+			format: "png",
+			filename: `${analysisName}-${plotName}`,
+			width: 1400,
+			height: 1000,
+			scale: 2,
+		});
 	});
 }
 
@@ -347,8 +524,13 @@ function updatePlot(plot_data) {
 			(acc, trace) => acc + (trace.x ? trace.x.length : 0),
 			0,
 		);
-		const disableHover = totalCellsCount > hoverPointLimit;
-		const markerStyle = getCurrentMarkerStyle();
+		currentHoverDisabledBySize = totalCellsCount > hoverPointLimit;
+		currentAxisTitles = {
+			x: getAxisTitle(plot_data.layout.xaxis),
+			y: getAxisTitle(plot_data.layout.yaxis),
+		};
+		const appearance = getCurrentPlotAppearance();
+		const markerStyle = appearance.marker;
 		const data = plot_data.data.map((trace) => {
 			const pointCount = trace.x ? trace.x.length : 0;
 			const label = String(trace.cluster || trace.name || "");
@@ -367,22 +549,16 @@ function updatePlot(plot_data) {
 				name: label ? `${label} (${pointCount.toLocaleString()})` : trace.name,
 				x: toFloat32Array(trace.x),
 				y: toFloat32Array(trace.y),
-				hoverinfo: disableHover ? "skip" : trace.hoverinfo,
+				hoverinfo: currentHoverDisabledBySize ? "skip" : trace.hoverinfo,
 				marker,
 			};
 		});
 		const layout = withPlotTheme({
 			...plot_data.layout,
 			dragmode: "pan",
-			hovermode: disableHover ? false : "closest",
-			showlegend: showLegendCheckbox ? showLegendCheckbox.checked : true,
-			legend: {
-				x: 1,
-				y: 1,
-				xanchor: "right",
-				yanchor: "top",
-				traceorder: "normal",
-			},
+			hovermode: currentHoverDisabledBySize ? false : "closest",
+			showlegend: appearance.showLegend,
+			legend: defaultLegendLayout,
 			margin: {
 				l: 15,
 				r: 15,
@@ -394,25 +570,32 @@ function updatePlot(plot_data) {
 			datarevision: ++plotRevision,
 			xaxis: {
 				...(plot_data.layout.xaxis || {}),
-				title: getAxisTitle(plot_data.layout.xaxis),
+				title: appearance.showAxes ? currentAxisTitles.x : "",
 				automargin: true,
 				constrain: "range",
 				constraintoward: "center",
+				showgrid: appearance.showGrid,
+				showline: appearance.showAxes,
+				showticklabels: appearance.showAxes,
+				zeroline: appearance.showAxes && appearance.showGrid,
 			},
 			yaxis: {
 				...(plot_data.layout.yaxis || {}),
-				title: getAxisTitle(plot_data.layout.yaxis),
+				title: appearance.showAxes ? currentAxisTitles.y : "",
 				automargin: true,
-				scaleanchor: "x",
-				scaleratio: 1,
+				scaleanchor: appearance.lockAspect ? "x" : null,
+				scaleratio: appearance.lockAspect ? 1 : null,
 				constrain: "range",
 				constraintoward: "center",
+				showgrid: appearance.showGrid,
+				showline: appearance.showAxes,
+				showticklabels: appearance.showAxes,
+				zeroline: appearance.showAxes && appearance.showGrid,
 			},
 		});
 
 		totalCells.textContent = `Total Cells: ${totalCellsCount.toLocaleString()}`;
-		Plotly.react(scatterPlotDiv, data, layout, plotConfig);
-		attachWheelZoom();
+		renderPlot(data, layout);
 
 		if (plot_data.fdr_level) fdrLevel.value = plot_data.fdr_level;
 
@@ -516,10 +699,7 @@ geneEntryInput.addEventListener("keypress", function (event) {
 if (plotConfigForm) {
 	plotConfigForm.addEventListener("submit", function (event) {
 		event.preventDefault();
-		// Get form data
-		const formData = new FormData(this);
-		const config = Object.fromEntries(formData.entries());
-		console.log("Plot configuration updated:", config);
+		applyPlotAppearance();
 	});
 }
 
