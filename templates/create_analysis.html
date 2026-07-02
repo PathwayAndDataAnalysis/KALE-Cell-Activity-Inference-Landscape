@@ -12,7 +12,8 @@
         <a href="{{ url_for('main_routes.index') }}" class="btn-secondary">Cancel</a>
     </div>
 
-    <form method="POST" action="{{ url_for('main_routes.create_analysis') }}" class="space-y-4 bg-gray-50/60 p-4 sm:p-5">
+    <form method="POST" action="{{ url_for('main_routes.create_analysis') }}"
+        class="space-y-4 bg-gray-50/60 p-4 sm:p-5">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}" />
 
         <div class="grid gap-4 lg:grid-cols-3">
@@ -26,23 +27,23 @@
                 <div class="rounded-md border border-blue-200 bg-blue-50 p-3">
                     <input type="hidden" name="analysis_method" value="z_aggregate">
                     <p class="text-sm font-semibold text-gray-900">
-                        Z-Aggregate
-                        <span class="ml-2 inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
+                        z-aggregate
+                        <span
+                            class="ml-2 inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
                             Default
                         </span>
-                    </p>
-                    <p class="mt-1 text-xs leading-5 text-gray-600">
-                        Computes TF activity from standardized target-gene expression using uniform prior-edge weights.
                     </p>
                 </div>
             </div>
         </div>
 
         <div class="app-section p-4 sm:p-5">
-            <div class="mb-4 flex flex-col gap-3 border-b border-gray-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+            <div
+                class="mb-4 flex flex-col gap-3 border-b border-gray-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h2 class="section-title">Gene Expression Data</h2>
-                    <p class="muted-help mt-1">Use a single .h5ad file or separate expression, species, and metadata files.</p>
+                    <p class="muted-help mt-1">Use a single .h5ad file or separate expression, species, and metadata
+                        files.</p>
                 </div>
                 <label for="have_h5ad" class="inline-flex items-center gap-2 text-sm font-semibold text-gray-700">
                     <input type="checkbox" id="have_h5ad" name="have_h5ad"
@@ -53,18 +54,29 @@
             </div>
 
             <div id="h5ad_selection_section" class="space-y-2" style="display: none">
-                <label for="selected_h5ad_file" class="form-label">Select .h5ad File</label>
                 {% if user_files %}
-                <select id="selected_h5ad_file" name="selected_h5ad_file" class="form-control">
-                    <option value="select-h5ad-file">-- Select a .h5ad file --</option>
-                    {% for file_info in user_files %}
-                    {% if file_info.filename.endswith('.h5ad') %}
-                    <option value="{{ file_info.filename }}">
-                        {{ file_info.original_filename | default(file_info.filename, true) }}
-                    </option>
-                    {% endif %}
-                    {% endfor %}
-                </select>
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
+                    <div class="min-w-0 flex-1">
+                        <label for="selected_h5ad_file" class="form-label">Select .h5ad File</label>
+                        <select id="selected_h5ad_file" name="selected_h5ad_file" class="form-control">
+                            <option value="select-h5ad-file">-- Select a .h5ad file --</option>
+                            {% for file_info in user_files %}
+                            {% if file_info.filename.endswith('.h5ad') %}
+                            <option value="{{ file_info.filename }}">
+                                {{ file_info.original_filename | default(file_info.filename, true) }}
+                            </option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="button" id="view-h5ad-qc-btn" data-open-qc-modal data-qc-source="h5ad"
+                        class="btn-secondary hidden whitespace-nowrap">
+                        View QC Plots
+                    </button>
+                </div>
+                <p class="muted-help hidden" data-qc-unavailable="h5ad">
+                    Quality control metrics are not available for the selected file yet.
+                </p>
                 {% else %}
                 <p class="rounded-md border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
                     No .h5ad files found. Upload one or provide separate count/metadata files.
@@ -75,17 +87,28 @@
             <div id="separate_files_section" class="space-y-4">
                 <div class="grid gap-4 md:grid-cols-2">
                     <div class="md:col-span-2">
-                        <label for="gene_exp_file" class="form-label">Gene Expression File</label>
-                        <select id="gene_exp_file" name="gene_exp_file" class="form-control">
-                            <option value="select-gene-exp-file">-- Select a gene expression file --</option>
-                            {% for file_info in user_files %}
-                            {% if file_info.file_type == 'Gene Expression' %}
-                            <option value="{{ file_info.filename }}">
-                                {{ file_info.original_filename | default(file_info.filename, true) }}
-                            </option>
-                            {% endif %}
-                            {% endfor %}
-                        </select>
+                        <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
+                            <div class="min-w-0 flex-1">
+                                <label for="gene_exp_file" class="form-label">Gene Expression File</label>
+                                <select id="gene_exp_file" name="gene_exp_file" class="form-control">
+                                    <option value="select-gene-exp-file">-- Select a gene expression file --</option>
+                                    {% for file_info in user_files %}
+                                    {% if file_info.file_type == 'Gene Expression' %}
+                                    <option value="{{ file_info.filename }}">
+                                        {{ file_info.original_filename | default(file_info.filename, true) }}
+                                    </option>
+                                    {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <button type="button" id="view-gene-qc-btn" data-open-qc-modal data-qc-source="gene"
+                                class="btn-secondary hidden whitespace-nowrap">
+                                View QC Plots
+                            </button>
+                        </div>
+                        <p class="muted-help hidden" data-qc-unavailable="gene">
+                            Quality control metrics are not available for the selected file yet.
+                        </p>
                     </div>
 
                     <div>
@@ -110,28 +133,6 @@
                             {% endfor %}
                         </select>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <div id="qc-plots-container" class="qc-fade-slide app-section hidden bg-white p-4 sm:p-5">
-            <h2 class="section-title mb-4 border-b border-gray-200 pb-3">Quality Control Plots</h2>
-            <div class="grid gap-4">
-                <div class="rounded-md border border-gray-200 bg-gray-50 p-3">
-                    <div id="qc-plot-gene-expression" class="h-64"></div>
-                    <div id="qc-plot-gene-expression-stats"></div>
-                </div>
-                <div class="rounded-md border border-gray-200 bg-gray-50 p-3">
-                    <div id="qc-plot-genes-per-cell" class="h-64"></div>
-                    <div id="qc-plot-genes-per-cell-stats"></div>
-                </div>
-                <div class="rounded-md border border-gray-200 bg-gray-50 p-3">
-                    <div id="qc-plot-cells-per-gene" class="h-64"></div>
-                    <div id="qc-plot-cells-per-gene-stats"></div>
-                </div>
-                <div class="rounded-md border border-gray-200 bg-gray-50 p-3">
-                    <div id="qc-plot-mt-percent" class="h-64"></div>
-                    <div id="qc-plot-mt-percent-stats"></div>
                 </div>
             </div>
         </div>
@@ -165,7 +166,7 @@
                         <label for="weight_type" class="form-label">Weight Type</label>
                         <select id="weight_type" name="weight_type" class="form-control">
                             {% for weight_type in weight_type_options %}
-                            <option value="{{ weight_type }}" {% if weight_type == 'Uniform' %}selected{% endif %}>
+                            <option value="{{ weight_type }}" {% if weight_type=='Uniform' %}selected{% endif %}>
                                 {{ weight_type }}
                             </option>
                             {% endfor %}
@@ -177,7 +178,8 @@
                         <input type="number" name="min_number_of_targets" id="min_number_of_targets" value="3" min="1"
                             class="form-control" />
                         <p class="muted-help mt-1">
-                            Only consider TFs that regulate at least this many target genes present in your expression data.
+                            Only consider TFs that regulate at least this many target genes present in your expression
+                            data.
                         </p>
                     </div>
                 </div>
@@ -188,7 +190,8 @@
                 <p class="muted-help mb-4">Adjust the default thresholds before the analysis starts.</p>
 
                 <div class="space-y-3">
-                    <div class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                    <div
+                        class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
                         <input type="checkbox" id="filter-cells" name="filter_cells" value="on" checked
                             class="h-4 w-4 flex-shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                         <label for="filter-cells">Keep cells with at least</label>
@@ -197,7 +200,8 @@
                         <span>genes</span>
                     </div>
 
-                    <div class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                    <div
+                        class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
                         <input type="checkbox" id="filter-genes" name="filter_genes" value="on" checked
                             class="h-4 w-4 flex-shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                         <label for="filter-genes">Keep genes found in at least</label>
@@ -206,7 +210,8 @@
                         <span>cells</span>
                     </div>
 
-                    <div class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                    <div
+                        class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
                         <input type="checkbox" id="qc-filter" name="qc_filter" value="on" checked
                             class="h-4 w-4 flex-shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                         <label for="qc-filter">Keep cells with Mitochondrial % less than</label>
@@ -215,7 +220,8 @@
                         <span>%</span>
                     </div>
 
-                    <div class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                    <div
+                        class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
                         <input type="checkbox" id="data-normalize" name="data_normalize" value="on" checked
                             class="h-4 w-4 flex-shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                         <label for="data-normalize">Normalize total expression to</label>
@@ -224,20 +230,25 @@
                         <span>per cell</span>
                     </div>
 
-                    <div class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                    <div
+                        class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
                         <input type="checkbox" id="log-transform" name="log_transform" value="on" checked
                             class="h-4 w-4 flex-shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                        <label for="log-transform">Apply <span class="rounded-md bg-gray-200 px-1.5 py-0.5 font-mono font-semibold">log1p</span> transformation</label>
+                        <label for="log-transform">Apply <span
+                                class="rounded-md bg-gray-200 px-1.5 py-0.5 font-mono font-semibold">log1p</span>
+                            transformation</label>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="app-section p-4 sm:p-5">
-            <div class="mb-4 flex flex-col gap-3 border-b border-gray-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+            <div
+                class="mb-4 flex flex-col gap-3 border-b border-gray-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h2 class="section-title">2D Layout</h2>
-                    <p class="muted-help mt-1">Use uploaded coordinates or generate a UMAP layout from the expression data.</p>
+                    <p class="muted-help mt-1">Use uploaded coordinates or generate a UMAP layout from the expression
+                        data.</p>
                 </div>
                 <label for="have_2d_layout" class="inline-flex items-center gap-2 text-sm font-semibold text-gray-700">
                     <input type="checkbox" id="have_2d_layout" name="have_2d_layout"
@@ -271,7 +282,8 @@
 
                     <div>
                         <label for="n_neighbors" class="form-label">Neighbors (n_neighbors)</label>
-                        <input type="number" name="n_neighbors" id="n_neighbors" value="15" min="2" class="form-control" />
+                        <input type="number" name="n_neighbors" id="n_neighbors" value="15" min="2"
+                            class="form-control" />
                     </div>
 
                     <div>
@@ -296,7 +308,8 @@
                                 data-tooltip-id="random-state-tooltip" tabindex="0" aria-label="Info">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
                                     stroke="currentColor" stroke-width="2">
-                                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="white"></circle>
+                                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"
+                                        class="fill-white dark:fill-gray-900"></circle>
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M12 16v-4m0-4h.01"></path>
                                 </svg>
@@ -306,7 +319,8 @@
                             class="form-control" placeholder="e.g. 42" />
                         <div id="random-state-tooltip"
                             class="hidden absolute z-10 w-64 rounded border border-gray-300 bg-white p-2 text-xs text-gray-700 shadow-md">
-                            <strong>Random State:</strong> This parameter sets the random seed for reproducibility. Enter an
+                            <strong>Random State:</strong> This parameter sets the random seed for reproducibility.
+                            Enter an
                             integer value to ensure the same UMAP result each time. Leave blank for random behavior.
                         </div>
                     </div>
@@ -314,18 +328,67 @@
             </div>
         </div>
 
-        <div class="flex flex-col gap-3 border-t border-gray-200 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-5">
+        <div
+            class="flex flex-col gap-3 border-t border-gray-200 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-5">
             <a href="{{ url_for('main_routes.index') }}" class="btn-secondary">Cancel</a>
             <input type="submit" value="Start Analysis" class="btn-primary cursor-pointer" {% if not user_files
                 %}disabled title="Upload files before creating an analysis" {% endif %} />
         </div>
     </form>
+
+    <div id="qc-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 p-4" aria-modal="true"
+        aria-labelledby="qc-modal-title" role="dialog">
+        <div class="app-card flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden">
+            <div class="flex items-start justify-between gap-4 border-b border-gray-200 px-5 py-4">
+                <div class="min-w-0">
+                    <h2 id="qc-modal-title" class="section-title">Quality Control Plots</h2>
+                    <p id="qc-selected-file-name" class="muted-help mt-1 truncate"></p>
+                </div>
+                <button type="button" data-close-qc-modal
+                    class="rounded-md p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    aria-label="Close quality control plots">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                        aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <div id="qc-plots-container" class="max-h-[calc(90vh-5rem)] overflow-y-auto bg-gray-50/60 p-4 sm:p-5">
+                <div class="grid gap-4 xl:grid-cols-2">
+                    <section id="qc-card-gene-expression"
+                        class="rounded-md border border-gray-200 bg-white p-3 shadow-sm">
+                        <h3 class="mb-3 text-sm font-semibold text-gray-900">Gene Expression</h3>
+                        <div id="qc-plot-gene-expression" class="h-72 sm:h-80"></div>
+                        <div id="qc-plot-gene-expression-stats" class="mt-3"></div>
+                    </section>
+                    <section id="qc-card-genes-per-cell"
+                        class="rounded-md border border-gray-200 bg-white p-3 shadow-sm">
+                        <h3 class="mb-3 text-sm font-semibold text-gray-900">Genes per Cell</h3>
+                        <div id="qc-plot-genes-per-cell" class="h-72 sm:h-80"></div>
+                        <div id="qc-plot-genes-per-cell-stats" class="mt-3"></div>
+                    </section>
+                    <section id="qc-card-cells-per-gene"
+                        class="rounded-md border border-gray-200 bg-white p-3 shadow-sm">
+                        <h3 class="mb-3 text-sm font-semibold text-gray-900">Cells per Gene</h3>
+                        <div id="qc-plot-cells-per-gene" class="h-72 sm:h-80"></div>
+                        <div id="qc-plot-cells-per-gene-stats" class="mt-3"></div>
+                    </section>
+                    <section id="qc-card-mt-percent" class="rounded-md border border-gray-200 bg-white p-3 shadow-sm">
+                        <h3 class="mb-3 text-sm font-semibold text-gray-900">Mitochondrial Content %</h3>
+                        <div id="qc-plot-mt-percent" class="h-72 sm:h-80"></div>
+                        <div id="qc-plot-mt-percent-stats" class="mt-3"></div>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
     window.user_files = {{ user_files | tojson }};
 </script>
 
-<script src="{{ url_for('static', filename='js/create_analysis.js') }}"></script>
+<script src="{{ url_for('static', filename='js/create_analysis.js') }}?v=qc-modal"></script>
 
 {% endblock %}

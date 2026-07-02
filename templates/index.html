@@ -99,7 +99,8 @@
                         </td>
                         <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{{ file_info.file_size |
                             format_filesize }}</td>
-                        <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{{ file_info.upload_date |
+                        <td class="whitespace-nowrap font-mono px-4 py-3 text-sm text-gray-600">{{ file_info.upload_date
+                            |
                             format_datetime }}</td>
                         <td class="w-20 whitespace-nowrap px-2 py-3 text-center text-sm font-medium">
                             <div class="flex items-center justify-center gap-1">
@@ -339,7 +340,8 @@
                     </div>
 
                     <div class="flex-shrink-0 text-xs text-gray-500 md:text-right">
-                        <span class="font-medium text-gray-600">{{ analysis.created_at | format_datetime }}</span>
+                        <span class="font-medium font-mono text-gray-600">{{ analysis.created_at | format_datetime
+                            }}</span>
                     </div>
                 </div>
 

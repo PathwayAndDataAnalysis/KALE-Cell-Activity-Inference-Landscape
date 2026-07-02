@@ -1,5 +1,6 @@
 // tf-pred-webserver/tailwind.config.js
 module.exports = {
+    darkMode: "media",
     content: [
         "./templates/**/*.html",
         "./app/**/*.py",

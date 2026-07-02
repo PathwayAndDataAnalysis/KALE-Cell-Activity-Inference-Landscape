@@ -41,6 +41,33 @@ const plotConfig = {
 	scrollZoom: false,
 };
 
+function getPlotThemeLayout() {
+	return window.appTheme ? window.appTheme.getPlotlyLayout() : {};
+}
+
+function getPlotThemeRelayout() {
+	return window.appTheme ? window.appTheme.getPlotlyRelayout() : {};
+}
+
+function withPlotTheme(layout) {
+	const theme = getPlotThemeLayout();
+
+	return {
+		...layout,
+		paper_bgcolor: theme.paper_bgcolor,
+		plot_bgcolor: theme.plot_bgcolor,
+		font: { ...(layout.font || {}), ...(theme.font || {}) },
+		xaxis: { ...(layout.xaxis || {}), ...(theme.xaxis || {}) },
+		yaxis: { ...(layout.yaxis || {}), ...(theme.yaxis || {}) },
+		legend: { ...(theme.legend || {}), ...(layout.legend || {}) },
+	};
+}
+
+function refreshScatterPlotTheme() {
+	if (!scatterPlotDiv || !scatterPlotDiv.data) return;
+	Plotly.relayout(scatterPlotDiv, getPlotThemeRelayout());
+}
+
 let plotRevision = 0;
 let pendingMarkerStyleFrame = null;
 let pendingResizeFrame = null;
@@ -344,7 +371,7 @@ function updatePlot(plot_data) {
 				marker,
 			};
 		});
-		const layout = {
+		const layout = withPlotTheme({
 			...plot_data.layout,
 			dragmode: "pan",
 			hovermode: disableHover ? false : "closest",
@@ -381,7 +408,7 @@ function updatePlot(plot_data) {
 				constrain: "range",
 				constraintoward: "center",
 			},
-		};
+		});
 
 		totalCells.textContent = `Total Cells: ${totalCellsCount.toLocaleString()}`;
 		Plotly.react(scatterPlotDiv, data, layout, plotConfig);
@@ -569,6 +596,8 @@ async function getPlotData(apiUrl, method, body) {
 document.addEventListener("DOMContentLoaded", function () {
 	addInputValidation("fdr-level", 0.0, 1.0);
 	addInputValidation("p-val-threshold", 0.0, 1.0);
+
+	if (window.appTheme) window.appTheme.onChange(refreshScatterPlotTheme);
 
 	getPlotData(`/analysis/plot/${window.analysis.id}`, "POST", { plot_type: "umap_plot" })
 		.then(() => {

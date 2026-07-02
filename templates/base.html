@@ -4,11 +4,12 @@
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<meta name="color-scheme" content="light dark" />
 
 	<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.ico') }}">
 	<title>{% block title %}KALE{% endblock %} - Cell Activity Inference Landscape</title>
 
-	<link href="{{ url_for('static', filename='css/dist/output.css') }}" rel="stylesheet" />
+	<link href="{{ url_for('static', filename='css/dist/output.css') }}?v=system-theme-qc-modal" rel="stylesheet" />
 </head>
 
 <body class="bg-gray-50 text-gray-800 min-h-screen flex flex-col">
@@ -94,7 +95,7 @@
 		%}</main>
 
 	<script src="https://cdn.plot.ly/plotly-3.0.1.min.js" charset="utf-8"></script>
-	<script src="{{ url_for('static', filename='js/common.js') }}" defer></script>
+	<script src="{{ url_for('static', filename='js/common.js') }}?v=system-theme-qc-modal" defer></script>
 </body>
 
 </html>
