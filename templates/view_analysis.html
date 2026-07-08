@@ -254,6 +254,7 @@
                                 <option value="select_cluster_type">---Select Cluster Type---</option>
                                 <option value="metadata_columns">Metadata Columns</option>
                                 <option value="tf_activity">TF Activity</option>
+                                <option value="tf_activity_score">TF Activity Score</option>
                                 <option value="gene_expression">Gene Expression Level</option>
                             </select>
 
@@ -396,7 +397,7 @@
     <script>
         window.analysis = {{ analysis | tojson }};
     </script>
-    <script src="{{ url_for('static', filename='js/view_analysis.js') }}?v=plot-customization-trimmed"></script>
+    <script src="{{ url_for('static', filename='js/view_analysis.js') }}?v=tf-activity-score"></script>
 </div>
 
 {% endblock %}

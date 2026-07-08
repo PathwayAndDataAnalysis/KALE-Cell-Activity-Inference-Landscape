@@ -466,21 +466,28 @@ if (colorBySelect) {
 			metadataColSelectionDiv.classList.add("hidden");
 			geneEntryDiv.classList.add("hidden");
 			colorScaleSelectionDiv.classList.add("hidden");
-			// fdrLevelDiv.classList.remove("hidden");
 			changeThresholdTypeDiv.classList.remove("hidden");
 
-			// Clear selections
 			metadataColNameSelect.value = "select_metadata_column";
+			geneEntryInput.value = "";
+		} else if (this.value === "tf_activity_score") {
+			tfSelectionDiv.classList.remove("hidden");
+			metadataColSelectionDiv.classList.add("hidden");
+			geneEntryDiv.classList.add("hidden");
+			colorScaleSelectionDiv.classList.remove("hidden");
+			changeThresholdTypeDiv.classList.add("hidden");
+
+			metadataColNameSelect.value = "select_metadata_column";
+			fdrLevel.value = "";
+			pValueThreshold.value = "";
 			geneEntryInput.value = "";
 		} else if (this.value === "metadata_columns") {
 			tfSelectionDiv.classList.add("hidden");
 			metadataColSelectionDiv.classList.remove("hidden");
 			geneEntryDiv.classList.add("hidden");
 			colorScaleSelectionDiv.classList.add("hidden");
-			// fdrLevelDiv.classList.add("hidden");
 			changeThresholdTypeDiv.classList.add("hidden");
 
-			// Clear selections
 			tfNameSelect.value = "select_tf";
 			fdrLevel.value = "";
 			pValueThreshold.value = "";
@@ -490,10 +497,8 @@ if (colorBySelect) {
 			colorScaleSelectionDiv.classList.remove("hidden");
 			tfSelectionDiv.classList.add("hidden");
 			metadataColSelectionDiv.classList.add("hidden");
-			// fdrLevelDiv.classList.add("hidden");
 			changeThresholdTypeDiv.classList.add("hidden");
 
-			// Clear selections
 			tfNameSelect.value = "select_tf";
 			fdrLevel.value = "";
 			pValueThreshold.value = "";
@@ -503,7 +508,6 @@ if (colorBySelect) {
 			colorScaleSelectionDiv.classList.add("hidden");
 			tfSelectionDiv.classList.add("hidden");
 			metadataColSelectionDiv.classList.add("hidden");
-			// fdrLevelDiv.classList.add("hidden");
 			changeThresholdTypeDiv.classList.add("hidden");
 		}
 	});
@@ -557,6 +561,7 @@ function updatePlot(plot_data) {
 				marker,
 			};
 		});
+		const nextRevision = ++plotRevision;
 		const layout = withPlotTheme({
 			...plot_data.layout,
 			dragmode: "pan",
@@ -571,7 +576,7 @@ function updatePlot(plot_data) {
 			},
 			autosize: true,
 			uirevision: plotTypeSelect ? plotTypeSelect.value : "analysis-plot",
-			datarevision: ++plotRevision,
+			datarevision: nextRevision,
 			xaxis: {
 				...(plot_data.layout.xaxis || {}),
 				title: appearance.showAxes ? currentAxisTitles.x : "",
@@ -666,16 +671,36 @@ function changePValueThreshold() {
 	}
 }
 
+function showTfActivityScore() {
+	const apiUrl = `/analysis/tf-activity-score/${window.analysis.id}`;
+
+	updatePlotData(apiUrl, "POST", {
+		tf_name: tfNameSelect.value,
+		plot_type: plotTypeSelect.value,
+	})
+		.then(() => {
+			console.log("TF activity score plot loaded successfully.");
+		})
+		.catch((err) => {
+			console.error("Failed to load TF activity score:", err);
+			alert("Failed to load TF activity score. Please try again later.");
+		});
+}
+
 tfNameSelect.addEventListener("change", function () {
 	if (this.value !== "select_tf") {
-		if (fdrCorrectionRadio.checked) changeFDRThreshold();
-		else changePValueThreshold();
+		if (colorBySelect.value === "tf_activity_score") showTfActivityScore();
+		else if (colorBySelect.value === "tf_activity") {
+			if (fdrCorrectionRadio.checked) changeFDRThreshold();
+			else changePValueThreshold();
+		}
 	} else {
 		alert("Please select a valid transcription factor.");
 	}
 });
 
 applyCorrectionBtn.addEventListener("click", function (e) {
+	if (colorBySelect.value !== "tf_activity") return;
 	if (fdrCorrectionRadio.checked) changeFDRThreshold();
 	else changePValueThreshold();
 });

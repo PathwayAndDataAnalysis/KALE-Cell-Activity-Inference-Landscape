@@ -10,6 +10,7 @@ import pandas as pd
 from flask import current_app, jsonify
 import scanpy as sc
 import numpy as np
+import pyarrow.parquet as pq
 from . import get_file_path, update_all_users_data
 from scipy.sparse import issparse
 
@@ -87,6 +88,114 @@ def _make_scattergl_trace(label, group_df, x_col, y_col, marker=None):
         "type": "scattergl",
         "name": str(label),
         "marker": marker or {},
+    }
+
+
+def _with_string_index(df):
+    df = df.copy(deep=False)
+    df.index = df.index.astype(str)
+    return df
+
+
+def get_activity_scores_path(analysis):
+    activity_scores_path = analysis.get("activity_scores_path") or analysis.get(
+        "activation_path"
+    )
+    if not activity_scores_path or not os.path.exists(activity_scores_path):
+        raise FileNotFoundError("Activity scores file not found for this analysis.")
+    return activity_scores_path
+
+
+def get_activity_tf_names(analysis):
+    try:
+        schema = pq.read_schema(get_activity_scores_path(analysis))
+    except Exception as exc:
+        current_app.logger.warning(
+            "Unable to read activity score columns for analysis_id='%s': %s",
+            analysis.get("id"),
+            exc,
+        )
+        return analysis.get("tfs", [])
+
+    index_columns = {"__index_level_0__", "index"}
+    return [name for name in schema.names if name not in index_columns]
+
+
+def get_analysis_metadata_df(analysis, user_id):
+    gene_expression = analysis.get("inputs", {}).get("gene_expression", {})
+    metadata_filepath = gene_expression.get("metadata_filepath")
+    h5ad_file = gene_expression.get("h5ad_filepath")
+
+    if metadata_filepath:
+        metadata_path = get_file_path(metadata_filepath, user_id)
+        metadata_df = pd.read_csv(
+            metadata_path, index_col=0, sep=infer_delimiter(metadata_path)
+        )
+        return _with_string_index(metadata_df)
+    if h5ad_file:
+        adata = sc.read_h5ad(get_file_path(h5ad_file, user_id))
+        return _with_string_index(pd.DataFrame(adata.obs))
+
+    raise ValueError("No metadata source is available for this analysis.")
+
+
+def generate_tf_activity_score_plot(analysis, tf_name, plot_type="umap_plot"):
+    activity_scores_path = get_activity_scores_path(analysis)
+    available_tfs = get_activity_tf_names(analysis)
+    if tf_name not in available_tfs:
+        raise ValueError("Invalid transcription factor specified.")
+
+    layout_filepath = analysis.get("inputs", {}).get("layout", {}).get("layout_filepath")
+    if not layout_filepath or not os.path.exists(layout_filepath):
+        raise FileNotFoundError("Layout file not found.")
+
+    plot_columns = get_plot_axis_columns(plot_type)
+    if not plot_columns:
+        raise ValueError("Invalid plot type specified.")
+    x_col, y_col, base_title = plot_columns
+
+    plot_df = _with_string_index(read_layout_columns(layout_filepath, [x_col, y_col]))
+    activity_scores_tf = pd.read_parquet(
+        activity_scores_path, use_threads=True, columns=[tf_name]
+    )
+    activity_scores_tf = _with_string_index(activity_scores_tf)
+    plot_df = plot_df.join(activity_scores_tf, how="inner")
+    score_values = pd.to_numeric(plot_df[tf_name], errors="coerce")
+
+    finite_abs_scores = np.abs(score_values[np.isfinite(score_values)])
+    color_limit = (
+        float(np.nanpercentile(finite_abs_scores, 99))
+        if len(finite_abs_scores) > 0
+        else 1.0
+    )
+    color_limit = max(color_limit, 1.0)
+
+    trace = {
+        "x": _series_to_plotly_values(plot_df[x_col]),
+        "y": _series_to_plotly_values(plot_df[y_col]),
+        "mode": "markers",
+        "type": "scattergl",
+        "name": tf_name,
+        "marker": {
+            "color": score_values.tolist(),
+            "colorscale": "RdBu",
+            "reversescale": True,
+            "showscale": True,
+            "cmin": -color_limit,
+            "cmax": color_limit,
+            "colorbar": {"title": "Score"},
+        },
+    }
+    layout = {
+        "title": f"{base_title} Colored by {tf_name} Activity Score",
+        "xaxis": {"title": x_col},
+        "yaxis": {"title": y_col},
+    }
+    return {
+        "data": [trace],
+        "layout": layout,
+        "plot_kind": "embedding",
+        "tf_activity_score": tf_name,
     }
 
 
@@ -476,23 +585,9 @@ def get_layout_and_metadata_dfs(analysis, user_id, plot_type="umap_plot"):
     if not plot_columns:
         raise ValueError(f"Unknown plot type: {plot_type}")
     x_col, y_col, _ = plot_columns
-    plot_df = read_layout_columns(layout_filepath, [x_col, y_col])
+    plot_df = _with_string_index(read_layout_columns(layout_filepath, [x_col, y_col]))
 
-    gene_expression = analysis.get("inputs", {}).get("gene_expression", {})
-    metadata_filepath = gene_expression.get("metadata_filepath")
-    h5ad_file = gene_expression.get("h5ad_filepath")
-
-    if metadata_filepath:
-        metadata_path = get_file_path(metadata_filepath, user_id)
-        metadata_df = pd.read_csv(
-            metadata_path, index_col=0, sep=infer_delimiter(metadata_path)
-        )
-    elif h5ad_file:
-        adata = sc.read_h5ad(get_file_path(h5ad_file, user_id))
-        metadata_df = pd.DataFrame(adata.obs)
-    else:
-        raise ValueError("No metadata source is available for this analysis.")
-
+    metadata_df = get_analysis_metadata_df(analysis, user_id)
     return plot_df, metadata_df
 
 

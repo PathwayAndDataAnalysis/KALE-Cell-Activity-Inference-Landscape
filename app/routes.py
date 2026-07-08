@@ -49,6 +49,8 @@ from .utils import (
     get_user_analysis_path,
     get_plot_axis_columns,
     read_layout_columns,
+    get_activity_tf_names,
+    generate_tf_activity_score_plot,
 )
 
 # Create Blueprints
@@ -807,6 +809,9 @@ def view_analysis(analysis_id):
         flash("Analysis not found.", "error")
         return redirect(url_for("main_routes.index"))
 
+    analysis_to_view = dict(analysis_to_view)
+    analysis_to_view["tfs"] = get_activity_tf_names(analysis_to_view)
+
     # Render the view_analysis.html template with the analysis data
     return render_template("view_analysis.html", analysis=analysis_to_view)
 
@@ -980,6 +985,41 @@ def get_gene_expression_color_by(analysis_id):
         return jsonify({"error": "Internal server error."}), 500
 
 
+@main_bp.route("/analysis/tf-activity-score/<analysis_id>", methods=["POST"])
+@login_required
+def get_tf_activity_score_color_by(analysis_id):
+    try:
+        all_users_data = get_all_users_data()
+        user_analyses = all_users_data.get(current_user.id, {}).get("analyses", [])
+        analysis = find_analysis_by_id(user_analyses, analysis_id)
+
+        if not analysis:
+            return jsonify({"error": "Analysis not found."}), 404
+        if analysis.get("status") != "Completed":
+            return jsonify({"error": "Analysis is not completed yet."}), 400
+
+        payload = request.get_json(silent=True) or {}
+        tf_name = (payload.get("tf_name") or "").strip()
+        plot_type = (payload.get("plot_type") or "").strip()
+        if not tf_name:
+            return jsonify({"error": "Transcription factor is required."}), 400
+
+        graph_data = generate_tf_activity_score_plot(
+            analysis, tf_name, plot_type=plot_type
+        )
+        return jsonify(graph_data), 200
+    except FileNotFoundError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception:
+        current_app.logger.error(
+            f"Error in get_tf_activity_score_color_by for analysis_id={analysis_id}.",
+            exc_info=True,
+        )
+        return jsonify({"error": "Internal server error."}), 500
+
+
 @main_bp.route("/analysis/change-fdr-tf/<analysis_id>", methods=["POST"])
 @login_required
 def change_fdr_tf(analysis_id):
@@ -1009,7 +1049,7 @@ def change_fdr_tf(analysis_id):
                 f"Analysis not completed yet: analysis_id={analysis_id}"
             )
             return jsonify({"error": "Analysis is not completed yet."}), 400
-        if tf_name not in analysis.get("tfs", []):
+        if tf_name not in get_activity_tf_names(analysis):
             return jsonify({"error": "Invalid transcription factor specified."}), 400
 
         pvalues_path = analysis.get("pvalues_path")
@@ -1127,7 +1167,7 @@ def change_pvalue_threshold_tf(analysis_id):
                 f"Analysis not completed yet: analysis_id={analysis_id}"
             )
             return jsonify({"error": "Analysis is not completed yet."}), 400
-        if tf_name not in analysis.get("tfs", []):
+        if tf_name not in get_activity_tf_names(analysis):
             return jsonify({"error": "Invalid transcription factor specified."}), 400
 
         pvalues_path = analysis.get("pvalues_path")
