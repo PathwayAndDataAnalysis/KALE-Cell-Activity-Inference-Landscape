@@ -18,6 +18,7 @@ executor = ThreadPoolExecutor(max_workers=4)  # Adjust as needed
 
 MAX_FILE_SIZE = 500 * 1024 * 1024 * 1024  # 500 GB
 MIN_DISK_SPACE = 10 * 1024 * 1024 * 1024  # 10 GB
+UPLOAD_DISK_RESERVE = 256 * 1024 * 1024  # 256 MB
 MIN_PROCESSING_MEMORY = 512 * 1024 * 1024  # 512 MB
 
 # Define constants for column names
@@ -461,13 +462,32 @@ def infer_delimiter(filepath):
         return ','
 
 
-def check_system_resources(require_memory=True):
-    """Check coarse disk and, optionally, memory availability."""
+def check_system_resources(
+    require_memory=True,
+    *,
+    disk_path=None,
+    required_disk_space=0,
+    min_free_disk_space=None,
+):
+    """Check disk capacity and, optionally, memory availability."""
     try:
-        # Check disk space
-        disk_usage = shutil.disk_usage(current_app.config["UPLOAD_FOLDER"])
-        if disk_usage.free < MIN_DISK_SPACE:
-            raise ValueError(f"Insufficient disk space. Need at least {MIN_DISK_SPACE / (1024 ** 3):.1f} GB free.")
+        disk_path = disk_path or current_app.config["UPLOAD_FOLDER"]
+        os.makedirs(disk_path, exist_ok=True)
+
+        if min_free_disk_space is None:
+            min_free_disk_space = current_app.config.get("MIN_DISK_SPACE", MIN_DISK_SPACE)
+
+        required_disk_space = max(0, int(required_disk_space or 0))
+        min_free_disk_space = max(0, int(min_free_disk_space or 0))
+        required_free_space = required_disk_space + min_free_disk_space
+
+        disk_usage = shutil.disk_usage(disk_path)
+        if disk_usage.free < required_free_space:
+            raise ValueError(
+                "Insufficient disk space. "
+                f"Available: {disk_usage.free / (1024 ** 2):.1f} MB; "
+                f"required: {required_free_space / (1024 ** 2):.1f} MB."
+            )
 
         # Check memory
         if require_memory:

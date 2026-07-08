@@ -188,6 +188,12 @@ def create_app(test_config=None):
         MAX_CONTENT_LENGTH=int(
             os.environ.get("MAX_CONTENT_LENGTH", 500 * 1024 * 1024 * 1024)
         ),
+        MIN_DISK_SPACE=int(
+            os.environ.get("MIN_DISK_SPACE", 10 * 1024 * 1024 * 1024)
+        ),
+        UPLOAD_DISK_RESERVE=int(
+            os.environ.get("UPLOAD_DISK_RESERVE", 256 * 1024 * 1024)
+        ),
         CSRF_ENABLED=True,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",

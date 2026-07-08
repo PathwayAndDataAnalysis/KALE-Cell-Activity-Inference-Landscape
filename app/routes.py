@@ -45,6 +45,7 @@ from .utils import (
     get_layout_and_gene_exp_levels_df,
     estimate_fdr_for_gene,
     check_system_resources,
+    UPLOAD_DISK_RESERVE,
     allowed_file,
     get_user_analysis_path,
     get_plot_axis_columns,
@@ -287,15 +288,6 @@ def download_data(filename):
 @login_required
 def upload_data():
     try:
-        # Uploads are streamed to disk, so the preflight check should not reject
-        # them only because the machine is under normal memory pressure.
-        if not check_system_resources(require_memory=False):
-            flash(
-                "System disk space is insufficient for file upload. Please try again later.",
-                "error",
-            )
-            return redirect(url_for("main_routes.index"))
-
         if "data_file" not in request.files:
             flash("No file part in the request.", "error")
             return redirect(url_for("main_routes.index"))
@@ -355,6 +347,20 @@ def upload_data():
                 file.seek(0, os.SEEK_END)
                 file_size = file.tell()
                 file.seek(0)  # Rewind to the beginning so save() works correctly
+
+                if not check_system_resources(
+                    require_memory=False,
+                    disk_path=user_data_storage_path,
+                    required_disk_space=file_size,
+                    min_free_disk_space=current_app.config.get(
+                        "UPLOAD_DISK_RESERVE", UPLOAD_DISK_RESERVE
+                    ),
+                ):
+                    flash(
+                        "System disk space is insufficient for this file upload. Please try again later.",
+                        "error",
+                    )
+                    return redirect(url_for("main_routes.index"))
 
                 with open(destination_file_path, "wb") as f:
                     chunk_size = 8192
