@@ -28,6 +28,7 @@ from . import (
     User,
     get_all_users_data,
     save_all_users_data,
+    update_all_users_data,
     find_analysis_by_id,
     get_file_path,
 )
@@ -70,6 +71,10 @@ ALLOWED_TABULAR_FILE_EXTENSIONS = (".csv", ".tsv", ".txt")
 UPLOAD_FILE_TYPES = {"Gene Expression", "Prior Data", "Metadata", "2D Layout", "Other"}
 
 
+class DuplicateUsernameError(Exception):
+    """Raised when a signup attempts to reuse an existing username."""
+
+
 def _is_safe_next_url(target):
     if not target:
         return False
@@ -82,6 +87,29 @@ def _path_is_within(path, base_dir):
         return os.path.commonpath([os.path.abspath(base_dir), os.path.abspath(path)]) == os.path.abspath(base_dir)
     except (TypeError, ValueError):
         return False
+
+
+def _wants_json_response():
+    return (
+        request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or request.accept_mimetypes["application/json"]
+        > request.accept_mimetypes["text/html"]
+    )
+
+
+def _upload_response(message, category="error", status_code=400, reload_page=False):
+    if _wants_json_response():
+        payload = {
+            "success": status_code < 400,
+            "message": message,
+            "category": category,
+        }
+        if reload_page:
+            payload["redirect_url"] = url_for("main_routes.index")
+        return jsonify(payload), status_code
+
+    flash(message, category)
+    return redirect(url_for("main_routes.index"))
 
 
 def _resolve_selected_user_file(
@@ -289,8 +317,7 @@ def download_data(filename):
 def upload_data():
     try:
         if "data_file" not in request.files:
-            flash("No file part in the request.", "error")
-            return redirect(url_for("main_routes.index"))
+            return _upload_response("No file part in the request.")
 
         file = request.files["data_file"]
         description = request.form.get("description", "").strip()
@@ -299,15 +326,13 @@ def upload_data():
             file_type = "Other"
 
         if file.filename == "":
-            flash("No file selected for upload.", "error")
-            return redirect(url_for("main_routes.index"))
+            return _upload_response("No file selected for upload.")
 
         if file and allowed_file(file.filename):
             original_filename = file.filename
             filename = secure_filename(original_filename)
             if not filename:
-                flash("The selected file has an invalid filename.", "error")
-                return redirect(url_for("main_routes.index"))
+                return _upload_response("The selected file has an invalid filename.")
 
             # --- Decide if QC should be run ---
             should_run_qc = False
@@ -321,8 +346,7 @@ def upload_data():
 
             user_data_storage_path = get_user_specific_data_path(current_user.id)
             if not user_data_storage_path:
-                flash("Could not access user storage directory.", "error")
-                return redirect(url_for("main_routes.index"))
+                return _upload_response("Could not access user storage directory.")
 
             destination_file_path = os.path.join(user_data_storage_path, filename)
 
@@ -337,11 +361,11 @@ def upload_data():
             user_files_list = all_users_data[current_user.id].get("files", [])
 
             if any(f["filename"] == filename for f in user_files_list):
-                flash(
+                return _upload_response(
                     f'File "{filename}" already exists. Please rename or delete the existing file.',
                     "warning",
+                    status_code=409,
                 )
-                return redirect(url_for("main_routes.index"))
 
             try:
                 file.seek(0, os.SEEK_END)
@@ -356,11 +380,11 @@ def upload_data():
                         "UPLOAD_DISK_RESERVE", UPLOAD_DISK_RESERVE
                     ),
                 ):
-                    flash(
+                    return _upload_response(
                         "System disk space is insufficient for this file upload. Please try again later.",
                         "error",
+                        status_code=507,
                     )
-                    return redirect(url_for("main_routes.index"))
 
                 with open(destination_file_path, "wb") as f:
                     chunk_size = 8192
@@ -400,14 +424,18 @@ def upload_data():
                         filename,
                         destination_file_path,
                     )
-                    flash(
+                    return _upload_response(
                         f'File "{original_filename}" uploaded successfully! QC analysis is running in the background.',
                         "success",
+                        status_code=200,
+                        reload_page=True,
                     )
                 else:
-                    flash(
+                    return _upload_response(
                         f'File "{original_filename}" uploaded successfully!',
                         "success",
+                        status_code=200,
+                        reload_page=True,
                     )
             except Exception as e:
                 current_app.logger.error(
@@ -419,19 +447,27 @@ def upload_data():
                         os.remove(destination_file_path)
                     except OSError:
                         pass
-                flash(f"An error occurred during file upload: {str(e)}", "error")
+                return _upload_response(
+                    f"An error occurred during file upload: {str(e)}",
+                    "error",
+                    status_code=500,
+                )
         else:
-            flash(
+            return _upload_response(
                 f"File type not allowed. Allowed: {', '.join(current_app.config['ALLOWED_EXTENSIONS'])}",
                 "error",
             )
 
     except RequestEntityTooLarge:
-        flash("File too large for upload.", "error")
+        return _upload_response("File too large for upload.", "error", status_code=413)
 
     except Exception as e:
         current_app.logger.error(f"Unexpected error in upload_data: {e}")
-        flash("An unexpected error occurred. Please try again.", "error")
+        return _upload_response(
+            "An unexpected error occurred. Please try again.",
+            "error",
+            status_code=500,
+        )
 
     return redirect(url_for("main_routes.index"))
 
@@ -1412,18 +1448,23 @@ def signup():
             flash("Passwords do not match.", "error")
             return render_template("signup.html")
 
-        all_users_data = get_all_users_data()
-        if username in all_users_data:
+        hashed_password = generate_password_hash(password)
+
+        def create_user(users_data):
+            if username in users_data:
+                raise DuplicateUsernameError
+            users_data[username] = {
+                "password": hashed_password,
+                "files": [],
+                "analyses": [],
+            }
+
+        try:
+            update_all_users_data(create_user)
+        except DuplicateUsernameError:
             flash("Username already exists. Please choose a different one.", "error")
             return render_template("signup.html")
 
-        hashed_password = generate_password_hash(password)
-        all_users_data[username] = {
-            "password": hashed_password,
-            "files": [],
-            "analyses": [],
-        }
-        save_all_users_data(all_users_data)
         get_user_specific_data_path(username)
 
         flash("Account created successfully! Please login.", "success")
