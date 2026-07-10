@@ -46,6 +46,7 @@ from .utils import (
     get_layout_and_gene_exp_levels_df,
     estimate_fdr_for_gene,
     check_system_resources,
+    ANALYSIS_DISK_RESERVE,
     UPLOAD_DISK_RESERVE,
     allowed_file,
     get_user_analysis_path,
@@ -567,15 +568,6 @@ def create_analysis_page():
 @login_required
 def create_analysis():
     try:
-        # Do not block analysis creation on a coarse memory snapshot. The
-        # background pipeline logs current memory and handles real failures.
-        if not check_system_resources(require_memory=False):
-            flash(
-                "System disk space is insufficient for analysis. Please try again later.",
-                "error",
-            )
-            return redirect(url_for("main_routes.create_analysis_page"))
-
         current_app.logger.info(f"Create analysis form data: {request.form}")
 
         # Validate analysis name
@@ -769,6 +761,25 @@ def create_analysis():
         min_number_of_targets = _parse_int_form(
             "min_number_of_targets", "Minimum targets per TF", default=3, min_value=1
         )
+
+        # Check the filesystem that will hold the generated analysis results.
+        analysis_storage_path = get_user_specific_data_path(current_user.id)
+        if not analysis_storage_path:
+            flash("Could not access storage for analysis. Please try again.", "error")
+            return redirect(url_for("main_routes.create_analysis_page"))
+
+        if not check_system_resources(
+            require_memory=False,
+            disk_path=analysis_storage_path,
+            min_free_disk_space=current_app.config.get(
+                "ANALYSIS_DISK_RESERVE", ANALYSIS_DISK_RESERVE
+            ),
+        ):
+            flash(
+                "System disk space is insufficient for analysis. Please try again later.",
+                "error",
+            )
+            return redirect(url_for("main_routes.create_analysis_page"))
 
         new_analysis = {
             "id": analysis_id,

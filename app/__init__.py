@@ -194,6 +194,9 @@ def create_app(test_config=None):
         UPLOAD_DISK_RESERVE=int(
             os.environ.get("UPLOAD_DISK_RESERVE", 256 * 1024 * 1024)
         ),
+        ANALYSIS_DISK_RESERVE=int(
+            os.environ.get("ANALYSIS_DISK_RESERVE", 512 * 1024 * 1024)
+        ),
         CSRF_ENABLED=True,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",

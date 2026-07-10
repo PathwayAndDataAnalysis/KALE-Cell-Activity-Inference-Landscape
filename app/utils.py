@@ -19,6 +19,7 @@ executor = ThreadPoolExecutor(max_workers=4)  # Adjust as needed
 MAX_FILE_SIZE = 500 * 1024 * 1024 * 1024  # 500 GB
 MIN_DISK_SPACE = 10 * 1024 * 1024 * 1024  # 10 GB
 UPLOAD_DISK_RESERVE = 256 * 1024 * 1024  # 256 MB
+ANALYSIS_DISK_RESERVE = 512 * 1024 * 1024  # 512 MB
 MIN_PROCESSING_MEMORY = 512 * 1024 * 1024  # 512 MB
 
 # Define constants for column names
